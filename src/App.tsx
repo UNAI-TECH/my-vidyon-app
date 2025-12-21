@@ -46,6 +46,15 @@ import { FacultyLeave } from "./pages/faculty/FacultyLeave";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
+import { InstitutionDepartments } from "./pages/institution/InstitutionDepartments";
+import { InstitutionCourses } from "./pages/institution/InstitutionCourses";
+import { InstitutionFaculty } from "./pages/institution/InstitutionFaculty";
+import { InstitutionCalendar } from "./pages/institution/InstitutionCalendar";
+import { InstitutionAdmissions } from "./pages/institution/InstitutionAdmissions";
+import { InstitutionFees } from "./pages/institution/InstitutionFees";
+import { InstitutionAnalytics } from "./pages/institution/InstitutionAnalytics";
+import { InstitutionReports } from "./pages/institution/InstitutionReports";
+import { InstitutionSettings } from "./pages/institution/InstitutionSettings";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
@@ -96,15 +105,15 @@ const App = () => (
 
               {/* Institution Routes */}
               <Route path="/institution" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionDashboard /></ProtectedRoute>} />
-              <Route path="/institution/departments" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Departments" subtitle="Manage academic departments" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/courses" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Courses" subtitle="Manage course catalog" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/faculty" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Faculty" subtitle="Manage faculty members" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/calendar" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Academic Calendar" subtitle="Manage academic calendar and events" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/admissions" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Admissions" subtitle="Manage student admissions" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/fees" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Fee Structure" subtitle="Configure fee structure" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Analytics" subtitle="View institutional analytics" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/reports" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Reports" subtitle="Generate and view reports" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/institution/settings" element={<ProtectedRoute allowedRoles={['institution']}><GenericPage title="Settings" subtitle="Configure institution settings" Layout={InstitutionLayout}><></></GenericPage></ProtectedRoute>} />
+              <Route path="/institution/departments" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionDepartments /></ProtectedRoute>} />
+              <Route path="/institution/courses" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionCourses /></ProtectedRoute>} />
+              <Route path="/institution/faculty" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFaculty /></ProtectedRoute>} />
+              <Route path="/institution/calendar" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionCalendar /></ProtectedRoute>} />
+              <Route path="/institution/admissions" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAdmissions /></ProtectedRoute>} />
+              <Route path="/institution/fees" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFees /></ProtectedRoute>} />
+              <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAnalytics /></ProtectedRoute>} />
+              <Route path="/institution/reports" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionReports /></ProtectedRoute>} />
+              <Route path="/institution/settings" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionSettings /></ProtectedRoute>} />
 
               {/* Admin Routes */}
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
