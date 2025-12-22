@@ -56,7 +56,7 @@ export function StudentCertificates() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {certificates.map((cert, index) => (
+                {[...certificates, ...(JSON.parse(localStorage.getItem('mockCertificates') || '[]') as typeof certificates)].map((cert, index) => (
                     <div key={index} className="dashboard-card hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">

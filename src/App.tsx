@@ -46,6 +46,9 @@ import { FacultyStudents } from "./pages/faculty/FacultyStudents";
 import { FacultyAnnouncements } from "./pages/faculty/FacultyAnnouncements";
 import { FacultyLeave } from "./pages/faculty/FacultyLeave";
 import { CreateAssignment } from "./pages/faculty/CreateAssignment";
+import { FacultyUploadCertificate } from "./pages/faculty/FacultyUploadCertificate";
+import { CreateSubject } from "./pages/faculty/CreateSubject";
+import { UploadExamPaper } from "./pages/faculty/UploadExamPaper";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -74,6 +77,13 @@ import { AdminUsers } from "./pages/admin/AdminUsers";
 import { AddInstitution } from "./pages/admin/AddInstitution";
 import { InstitutionDetail } from "./pages/admin/InstitutionDetail";
 import { AdminInstitutionAnalytics } from "./pages/admin/AdminInstitutionAnalytics";
+import { AdminRoles } from "./pages/admin/AdminRoles";
+import { AdminAPI } from "./pages/admin/AdminAPI";
+import { AdminDatabase } from "./pages/admin/AdminDatabase";
+import { AdminMonitoring } from "./pages/admin/AdminMonitoring";
+import { AdminFeatures } from "./pages/admin/AdminFeatures";
+import { AdminConfig } from "./pages/admin/AdminConfig";
+import { AdminSettings } from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -128,7 +138,10 @@ const App = () => {
                 <Route path="/faculty/analytics" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAnalytics /></ProtectedRoute>} />
                 <Route path="/faculty/students" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyStudents /></ProtectedRoute>} />
                 <Route path="/faculty/announcements" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAnnouncements /></ProtectedRoute>} />
+                <Route path="/faculty/upload-certificate" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyUploadCertificate /></ProtectedRoute>} />
                 <Route path="/faculty/leave" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyLeave /></ProtectedRoute>} />
+                <Route path="/faculty/courses/create" element={<ProtectedRoute allowedRoles={['faculty']}><CreateSubject /></ProtectedRoute>} />
+                <Route path="/faculty/exams/upload" element={<ProtectedRoute allowedRoles={['faculty']}><UploadExamPaper /></ProtectedRoute>} />
 
                 {/* Institution Routes */}
                 <Route path="/institution" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionDashboard /></ProtectedRoute>} />
@@ -157,13 +170,13 @@ const App = () => {
                 <Route path="/admin/institutions/:institutionId" element={<ProtectedRoute allowedRoles={['admin']}><InstitutionDetail /></ProtectedRoute>} />
                 <Route path="/admin/institutions/:institutionId/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutionAnalytics /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
-                <Route path="/admin/roles" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="Roles & Permissions" subtitle="Manage user roles and permissions" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
-                <Route path="/admin/api" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="API Management" subtitle="Manage API keys and access" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
-                <Route path="/admin/database" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="Database" subtitle="Database management and backups" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
-                <Route path="/admin/monitoring" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="Monitoring" subtitle="System monitoring and logs" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
-                <Route path="/admin/features" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="Feature Flags" subtitle="Manage feature toggles" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
-                <Route path="/admin/config" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="Global Config" subtitle="Global system configuration" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
-                <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><GenericPage title="Settings" subtitle="Admin settings and preferences" Layout={AdminLayout}><></></GenericPage></ProtectedRoute>} />
+                <Route path="/admin/roles" element={<ProtectedRoute allowedRoles={['admin']}><AdminRoles /></ProtectedRoute>} />
+                <Route path="/admin/api" element={<ProtectedRoute allowedRoles={['admin']}><AdminAPI /></ProtectedRoute>} />
+                <Route path="/admin/database" element={<ProtectedRoute allowedRoles={['admin']}><AdminDatabase /></ProtectedRoute>} />
+                <Route path="/admin/monitoring" element={<ProtectedRoute allowedRoles={['admin']}><AdminMonitoring /></ProtectedRoute>} />
+                <Route path="/admin/features" element={<ProtectedRoute allowedRoles={['admin']}><AdminFeatures /></ProtectedRoute>} />
+                <Route path="/admin/config" element={<ProtectedRoute allowedRoles={['admin']}><AdminConfig /></ProtectedRoute>} />
+                <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />

@@ -49,10 +49,10 @@ const recentAdmissions = [
 ];
 
 const topPerformingDepts = [
-  { department: 'Computer Science', students: 420, faculty: 28, avgGPA: 3.65, placement: '92%' },
-  { department: 'Electrical Eng.', students: 380, faculty: 24, avgGPA: 3.52, placement: '88%' },
-  { department: 'Business Admin.', students: 340, faculty: 22, avgGPA: 3.48, placement: '85%' },
-  { department: 'Mechanical Eng.', students: 310, faculty: 20, avgGPA: 3.41, placement: '82%' },
+  { department: 'Science Stream', students: 420, faculty: 28, avgGPA: '88%', placement: '92%' },
+  { department: 'Mathematics', students: 380, faculty: 24, avgGPA: '85%', placement: '88%' },
+  { department: 'Commerce', students: 340, faculty: 22, avgGPA: '82%', placement: '85%' },
+  { department: 'Humanities', students: 310, faculty: 20, avgGPA: '84%', placement: '82%' },
 ];
 
 export function InstitutionDashboard() {
@@ -77,11 +77,11 @@ export function InstitutionDashboard() {
   ];
 
   const deptColumns = [
-    { key: 'department', header: 'Department' },
+    { key: 'department', header: 'Subject/Stream' },
     { key: 'students', header: 'Students' },
-    { key: 'faculty', header: 'Faculty' },
-    { key: 'avgGPA', header: 'Avg. GPA' },
-    { key: 'placement', header: 'Placement Rate' },
+    { key: 'faculty', header: 'Teachers' },
+    { key: 'avgGPA', header: 'Avg. Score' },
+    { key: 'placement', header: 'Pass Rate' },
   ];
 
   return (

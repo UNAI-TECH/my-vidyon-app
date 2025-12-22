@@ -5,11 +5,11 @@ import { useTranslation } from '@/i18n/TranslationContext';
 import { TrendingUp, Award } from 'lucide-react';
 
 const gradesData = [
-    { course: 'Mathematics', code: 'MAT10', midterm: 85, assignments: 90, final: 88, total: 88, grade: 'A1', credits: 4 },
-    { course: 'Science', code: 'SCI10', midterm: 78, assignments: 85, final: 82, total: 82, grade: 'A2', credits: 4 },
-    { course: 'English', code: 'ENG10', midterm: 92, assignments: 95, final: 90, total: 92, grade: 'A1', credits: 3 },
-    { course: 'Social Studies', code: 'SST10', midterm: 75, assignments: 80, final: 78, total: 78, grade: 'B1', credits: 4 },
-    { course: 'Hindi', code: 'HIN10', midterm: 88, assignments: 85, final: 86, total: 86, grade: 'A2', credits: 3 },
+    { course: 'Mathematics', code: 'MAT10', midterm: 85, assignments: 90, final: 88, total: 88, grade: 'A1' },
+    { course: 'Science', code: 'SCI10', midterm: 78, assignments: 85, final: 82, total: 82, grade: 'A2' },
+    { course: 'English', code: 'ENG10', midterm: 92, assignments: 95, final: 90, total: 92, grade: 'A1' },
+    { course: 'Social Studies', code: 'SST10', midterm: 75, assignments: 80, final: 78, total: 78, grade: 'B1' },
+    { course: 'Hindi', code: 'HIN10', midterm: 88, assignments: 85, final: 86, total: 86, grade: 'A2' },
 ];
 
 const semesterPercentage = '85%';
@@ -71,7 +71,6 @@ export function StudentGrades() {
                                 <th className="table-header text-center">Final</th>
                                 <th className="table-header text-center">Total</th>
                                 <th className="table-header text-center">Grade</th>
-                                <th className="table-header text-center">Credits</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -88,18 +87,10 @@ export function StudentGrades() {
                                             {course.grade}
                                         </Badge>
                                     </td>
-                                    <td className="table-cell text-center">{course.credits}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                </div>
-
-                <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                    <div className="flex justify-between items-center">
-                        <span className="font-medium">Total Credits This Semester:</span>
-                        <span className="font-bold text-lg">{gradesData.reduce((sum, c) => sum + c.credits, 0)}</span>
-                    </div>
                 </div>
             </div>
         </StudentLayout>

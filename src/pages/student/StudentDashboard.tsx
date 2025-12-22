@@ -45,7 +45,7 @@ const upcomingAssignments = [
 
 const notifications = [
   { title: 'Assignment Graded', message: 'Your Shakespeare Essay has been graded. You scored 95/100.', type: 'success' as const, time: '2 hours ago' },
-  { title: 'New Material Uploaded', message: 'New lecture notes for Mathematics have been uploaded.', type: 'info' as const, time: '5 hours ago' },
+  { title: 'New Material Uploaded', message: 'New study material for Mathematics have been uploaded.', type: 'info' as const, time: '5 hours ago' },
   { title: 'Exam Reminder', message: 'Your Unit Test - II for Mathematics is scheduled for next Monday.', type: 'warning' as const, time: '1 day ago' },
 ];
 
@@ -136,8 +136,8 @@ export function StudentDashboard() {
                   <div className="text-xs text-muted-foreground">Dec</div>
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Mid-Semester Exam</p>
-                  <p className="text-xs text-muted-foreground">CS201 • 10:00 AM</p>
+                  <p className="font-medium text-sm">Unit Test: Mathematics</p>
+                  <p className="text-xs text-muted-foreground">Class 10-A • 10:00 AM</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
@@ -146,8 +146,8 @@ export function StudentDashboard() {
                   <div className="text-xs text-muted-foreground">Dec</div>
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Project Presentation</p>
-                  <p className="text-xs text-muted-foreground">CS205 • 2:00 PM</p>
+                  <p className="font-medium text-sm">Science Fair</p>
+                  <p className="text-xs text-muted-foreground">Auditorium • 2:00 PM</p>
                 </div>
               </div>
             </div>

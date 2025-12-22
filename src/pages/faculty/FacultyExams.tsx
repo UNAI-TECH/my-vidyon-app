@@ -16,7 +16,7 @@ export function FacultyExams() {
                 title="Exam Papers"
                 subtitle="Manage and upload examination question papers"
                 actions={
-                    <Button className="btn-primary flex items-center gap-2">
+                    <Button className="btn-primary flex items-center gap-2" onClick={() => window.location.href = '/faculty/exams/upload'}>
                         <Upload className="w-4 h-4" />
                         Upload New Paper
                     </Button>
@@ -24,7 +24,7 @@ export function FacultyExams() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {examPapers.map((paper) => (
+                {[...examPapers, ...(JSON.parse(localStorage.getItem('facultyExams') || '[]') as typeof examPapers)].map((paper) => (
                     <div key={paper.id} className="dashboard-card group">
                         <div className="flex items-start justify-between mb-4">
                             <div className="p-3 bg-primary/10 rounded-xl">

@@ -26,11 +26,11 @@ import {
 import { toast } from "sonner";
 
 const initialCourses = [
-    { id: '1', name: 'Mathematics', code: 'MATH10', department: 'Mathematics', credits: 10, instructor: 'Mr. R. Sharma', students: 45 },
-    { id: '2', name: 'Physics', code: 'PHY12', department: 'Science', credits: 12, instructor: 'Mrs. S. Verma', students: 38 },
-    { id: '3', name: 'English Literature', code: 'ENG09', department: 'English', credits: 9, instructor: 'Ms. A. Davis', students: 52 },
-    { id: '4', name: 'Social Studies', code: 'SOC10', department: 'Social Studies', credits: 10, instructor: 'Mr. K. Singh', students: 40 },
-    { id: '5', name: 'Chemistry', code: 'CHEM12', department: 'Science', credits: 12, instructor: 'Dr. M. Gupta', students: 30 },
+    { id: '1', name: 'Mathematics', code: 'MATH10', department: 'Mathematics', instructor: 'Mr. R. Sharma', students: 45 },
+    { id: '2', name: 'Physics', code: 'PHY12', department: 'Science', instructor: 'Mrs. S. Verma', students: 38 },
+    { id: '3', name: 'English Literature', code: 'ENG09', department: 'English', instructor: 'Ms. A. Davis', students: 52 },
+    { id: '4', name: 'Social Studies', code: 'SOC10', department: 'Social Studies', instructor: 'Mr. K. Singh', students: 40 },
+    { id: '5', name: 'Chemistry', code: 'CHEM12', department: 'Science', instructor: 'Dr. M. Gupta', students: 30 },
 ];
 
 export function InstitutionCourses() {
@@ -41,7 +41,6 @@ export function InstitutionCourses() {
         name: '',
         code: '',
         department: '',
-        credits: '',
         instructor: ''
     });
 
@@ -53,14 +52,13 @@ export function InstitutionCourses() {
                 name: newCourse.name,
                 code: newCourse.code,
                 department: newCourse.department,
-                credits: parseInt(newCourse.credits) || 0,
                 instructor: newCourse.instructor,
                 students: 0
             };
             setCourses([...courses, course]);
             setIsSubmitting(false);
             setIsAddDialogOpen(false);
-            setNewCourse({ name: '', code: '', department: '', credits: '', instructor: '' });
+            setNewCourse({ name: '', code: '', department: '', instructor: '' });
             toast.success("Course added successfully");
         }, 1000);
     };
@@ -68,8 +66,7 @@ export function InstitutionCourses() {
     const columns = [
         { key: 'code', header: 'Code' },
         { key: 'name', header: 'Course Name' },
-        { key: 'department', header: 'Department/Subject' },
-        { key: 'credits', header: 'Grade' },
+        { key: 'department', header: 'Subject Group' },
         { key: 'instructor', header: 'Lead Instructor' },
         { key: 'students', header: 'Enrolled' },
         {
@@ -155,17 +152,6 @@ export function InstitutionCourses() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="credits" className="text-right">Grade</Label>
-                                        <Input
-                                            id="credits"
-                                            type="number"
-                                            value={newCourse.credits}
-                                            onChange={(e) => setNewCourse({ ...newCourse, credits: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="e.g. 10"
-                                        />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <Label htmlFor="instructor" className="text-right">Instructor</Label>

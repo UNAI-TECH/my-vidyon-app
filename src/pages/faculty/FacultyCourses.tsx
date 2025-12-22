@@ -18,7 +18,7 @@ export function FacultyCourses() {
                 title="My Subjects"
                 subtitle="Manage your assigned subjects and classes"
                 actions={
-                    <Button className="btn-primary flex items-center gap-2">
+                    <Button className="btn-primary flex items-center gap-2" onClick={() => window.location.href = '/faculty/courses/create'}>
                         <Plus className="w-4 h-4" />
                         Create New Subject
                     </Button>
@@ -26,7 +26,7 @@ export function FacultyCourses() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {subjects.map((course) => (
+                {[...subjects, ...(JSON.parse(localStorage.getItem('facultySubjects') || '[]') as typeof subjects)].map((course) => (
                     <CourseCard key={course.code} {...course} />
                 ))}
             </div>

@@ -8,7 +8,7 @@ import { useState } from 'react';
 
 const allNotifications = [
     { title: 'Assignment Graded', message: 'Your React Portfolio Project has been graded. You scored 95/100.', type: 'success' as const, time: '2 hours ago', category: 'grades' },
-    { title: 'New Material Uploaded', message: 'New lecture slides for Database Management have been uploaded.', type: 'info' as const, time: '5 hours ago', category: 'materials' },
+    { title: 'New Material Uploaded', message: 'New class notes for Database Management have been uploaded.', type: 'info' as const, time: '5 hours ago', category: 'materials' },
     { title: 'Fee Payment Reminder', message: 'Your semester fee payment is due in 5 days.', type: 'warning' as const, time: '1 day ago', category: 'fees' },
     { title: 'Exam Schedule Released', message: 'Mid-semester exam schedule has been published. Check your timetable.', type: 'info' as const, time: '1 day ago', category: 'exams' },
     { title: 'Assignment Due Soon', message: 'Binary Tree Implementation assignment is due in 2 days.', type: 'warning' as const, time: '2 days ago', category: 'assignments' },
