@@ -1,4 +1,4 @@
-export type UserRole = 'student' | 'faculty' | 'institution' | 'admin';
+export type UserRole = 'student' | 'faculty' | 'institution' | 'admin' | 'parent';
 
 export interface User {
   id: string;
@@ -14,6 +14,7 @@ export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  error?: string;
 }
 
 export interface LoginCredentials {
@@ -26,6 +27,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   faculty: 'Faculty',
   institution: 'Institution',
   admin: 'Super Admin',
+  parent: 'Parent',
 };
 
 export const ROLE_ROUTES: Record<UserRole, string> = {
@@ -33,4 +35,5 @@ export const ROLE_ROUTES: Record<UserRole, string> = {
   faculty: '/faculty',
   institution: '/institution',
   admin: '/admin',
+  parent: '/parent',
 };

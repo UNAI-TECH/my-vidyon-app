@@ -10,11 +10,11 @@ import { Users, GraduationCap, Building2, Shield, Plus, Search, MoreHorizontal }
 import { useSearchParams } from 'react-router-dom';
 
 const allUsers = [
-  { id: 1, name: 'John Smith', email: 'john.smith@stanford.edu', role: 'student', institution: 'Stanford University', status: 'active', lastLogin: '2 hours ago' },
-  { id: 2, name: 'Dr. Sarah Williams', email: 'sarah.w@mit.edu', role: 'faculty', institution: 'MIT', status: 'active', lastLogin: '1 day ago' },
-  { id: 3, name: 'Prof. Michael Chen', email: 'admin@oxford.edu', role: 'institution', institution: 'Oxford University', status: 'active', lastLogin: '3 hours ago' },
-  { id: 4, name: 'Emily Johnson', email: 'emily.j@stanford.edu', role: 'student', institution: 'Stanford University', status: 'inactive', lastLogin: '1 week ago' },
-  { id: 5, name: 'Dr. Robert Brown', email: 'r.brown@ethz.ch', role: 'faculty', institution: 'ETH Zurich', status: 'active', lastLogin: '5 hours ago' },
+  { id: 1, name: 'John Smith', email: 'john.smith@revoor.edu', role: 'student', institution: 'Revoor Padmanabha Chettys Matriculation School', status: 'active', lastLogin: '2 hours ago' },
+  { id: 2, name: 'Dr. Sarah Williams', email: 'sarah.w@beloved.edu', role: 'faculty', institution: 'The Beloved Matriculation School', status: 'active', lastLogin: '1 day ago' },
+  { id: 3, name: 'Prof. Michael Chen', email: 'admin@venkateshwara.edu', role: 'institution', institution: 'Venkateshwara Matriculation School', status: 'active', lastLogin: '3 hours ago' },
+  { id: 4, name: 'Emily Johnson', email: 'emily.j@mercury.edu', role: 'student', institution: 'Mercury Matriculation School', status: 'inactive', lastLogin: '1 week ago' },
+  { id: 5, name: 'Dr. Robert Brown', email: 'r.brown@radhakrishna.edu', role: 'faculty', institution: 'Radha Krishna Matriculation School', status: 'active', lastLogin: '5 hours ago' },
   { id: 6, name: 'System Admin', email: 'superadmin@erp.com', role: 'admin', institution: 'Platform', status: 'active', lastLogin: 'Just now' },
 ];
 

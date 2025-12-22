@@ -59,6 +59,14 @@ import { InstitutionAnalytics } from "./pages/institution/InstitutionAnalytics";
 import { InstitutionReports } from "./pages/institution/InstitutionReports";
 import { InstitutionSettings } from "./pages/institution/InstitutionSettings";
 
+// Parent Pages
+import { ParentDashboard } from "./pages/parent/ParentDashboard";
+import { ParentChildDetail } from "./pages/parent/ParentChildDetail";
+import { ParentNotifications } from "./pages/parent/ParentNotifications";
+import { ParentFees } from "./pages/parent/ParentFees";
+import { ParentLeave } from "./pages/parent/ParentLeave";
+import { ParentSettings } from "./pages/parent/ParentSettings";
+
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminInstitutions } from "./pages/admin/AdminInstitutions";
@@ -133,6 +141,14 @@ const App = () => {
                 <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAnalytics /></ProtectedRoute>} />
                 <Route path="/institution/reports" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionReports /></ProtectedRoute>} />
                 <Route path="/institution/settings" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionSettings /></ProtectedRoute>} />
+
+                {/* Parent Routes */}
+                <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
+                <Route path="/parent/child/:studentId" element={<ProtectedRoute allowedRoles={['parent']}><ParentChildDetail /></ProtectedRoute>} />
+                <Route path="/parent/notifications" element={<ProtectedRoute allowedRoles={['parent']}><ParentNotifications /></ProtectedRoute>} />
+                <Route path="/parent/fees" element={<ProtectedRoute allowedRoles={['parent']}><ParentFees /></ProtectedRoute>} />
+                <Route path="/parent/leave" element={<ProtectedRoute allowedRoles={['parent']}><ParentLeave /></ProtectedRoute>} />
+                <Route path="/parent/settings" element={<ProtectedRoute allowedRoles={['parent']}><ParentSettings /></ProtectedRoute>} />
 
                 {/* Admin Routes */}
                 <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />

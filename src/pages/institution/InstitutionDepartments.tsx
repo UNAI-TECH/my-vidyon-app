@@ -26,11 +26,11 @@ import {
 import { toast } from "sonner";
 
 const initialDepartments = [
-    { id: '1', name: 'Computer Science', head: 'Dr. James Smith', faculty: 24, students: 450, courses: 12, status: 'active' },
-    { id: '2', name: 'Electrical Engineering', head: 'Dr. Robert Brown', faculty: 18, students: 380, courses: 10, status: 'active' },
-    { id: '3', name: 'Mechanical Engineering', head: 'Dr. Michael Wilson', faculty: 15, students: 320, courses: 8, status: 'active' },
-    { id: '4', name: 'Business Administration', head: 'Dr. Sarah Davis', faculty: 20, students: 400, courses: 9, status: 'active' },
-    { id: '5', name: 'Civil Engineering', head: 'Dr. David Miller', faculty: 12, students: 250, courses: 7, status: 'inactive' },
+    { id: '1', name: 'Science', head: 'Dr. James Smith', faculty: 24, students: 450, courses: 12, status: 'active' },
+    { id: '2', name: 'Mathematics', head: 'Dr. Robert Brown', faculty: 18, students: 380, courses: 10, status: 'active' },
+    { id: '3', name: 'Social Studies', head: 'Dr. Michael Wilson', faculty: 15, students: 320, courses: 8, status: 'active' },
+    { id: '4', name: 'English', head: 'Dr. Sarah Davis', faculty: 20, students: 400, courses: 9, status: 'active' },
+    { id: '5', name: 'Hindi', head: 'Dr. David Miller', faculty: 12, students: 250, courses: 7, status: 'inactive' },
 ];
 
 export function InstitutionDepartments() {
@@ -74,7 +74,7 @@ export function InstitutionDepartments() {
             key: 'status',
             header: 'Status',
             render: (item: typeof departments[0]) => (
-                <Badge variant={item.status === 'active' ? 'success' : 'secondary'}>
+                <Badge variant={item.status === 'active' ? 'success' : 'outline'}>
                     {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                 </Badge>
             ),

@@ -78,11 +78,11 @@ export function StudentDashboard() {
           changeType="positive"
         />
         <StatCard
-          title="Current CGPA"
-          value="3.75"
+          title="Overall Percentage"
+          value="85%"
           icon={TrendingUp}
           iconColor="text-primary"
-          change="+0.15 from last sem"
+          change="+2% from last term"
           changeType="positive"
         />
         <StatCard

@@ -41,6 +41,12 @@ const DEMO_USERS: Record<UserRole, User> = {
     name: 'System Administrator',
     role: 'admin',
   },
+  parent: {
+    id: 'PAR001',
+    email: 'PARENT@gmail.com',
+    name: 'Mr. Robert Johnson',
+    role: 'parent',
+  },
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -67,6 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role = 'institution';
     } else if (credentials.email.includes('STAFF') || credentials.email.includes('faculty')) {
       role = 'faculty';
+    } else if (credentials.email === 'PARENT@gmail.com' || credentials.email.includes('PARENT') || credentials.email.includes('parent')) {
+      if (credentials.email === 'PARENT@gmail.com' && credentials.password !== 'PARENT2025') {
+        throw new Error('Invalid credentials');
+      }
+      role = 'parent';
     } else if (credentials.email.includes('STU') || credentials.email.includes('student')) {
       role = 'student';
     }

@@ -16,6 +16,12 @@ import {
   Shield,
   Users,
 } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 
 interface NavItem {
   label: string;
@@ -34,6 +40,7 @@ const roleIcons: Record<UserRole, React.ComponentType<{ className?: string }>> =
   faculty: Users,
   institution: Building2,
   admin: Shield,
+  parent: Users,
 };
 
 export function DashboardLayout({ children, navItems, roleColor = 'text-primary' }: DashboardLayoutProps) {
@@ -64,10 +71,17 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
 
         <div className="flex items-center gap-2">
           <LanguageSelector />
-          <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+              </button>
+            </SheetTrigger>
+            <SheetContent className="w-[320px] p-0">
+              <NotificationPanel />
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
 
@@ -190,10 +204,18 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
 
           <div className="flex items-center gap-4">
             <LanguageSelector />
-            <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
-              <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-            </button>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
+                  <Bell className="w-5 h-5 text-muted-foreground" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+                </button>
+              </SheetTrigger>
+              <SheetContent className="w-[400px] sm:w-[540px] p-0">
+                <NotificationPanel />
+              </SheetContent>
+            </Sheet>
           </div>
         </header>
 

@@ -7,21 +7,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const assignments = {
   pending: [
-    { title: 'Binary Tree Implementation', course: 'Data Structures & Algorithms', dueDate: 'Dec 22, 2025', status: 'pending' as const },
-    { title: 'E-R Diagram Design', course: 'Database Management Systems', dueDate: 'Dec 24, 2025', status: 'pending' as const },
-    { title: 'Network Topology Analysis', course: 'Computer Networks', dueDate: 'Dec 26, 2025', status: 'pending' as const },
+    { title: 'Algebra Problem Set', course: 'Mathematics', dueDate: 'Dec 22, 2025', status: 'pending' as const },
+    { title: 'Plant Cell Diagram', course: 'Science', dueDate: 'Dec 24, 2025', status: 'pending' as const },
+    { title: 'Map Work: Rivers of India', course: 'Social Studies', dueDate: 'Dec 26, 2025', status: 'pending' as const },
   ],
   submitted: [
-    { title: 'SQL Query Optimization', course: 'Database Management Systems', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
-    { title: 'Responsive Landing Page', course: 'Web Development', dueDate: 'Dec 19, 2025', status: 'submitted' as const },
+    { title: 'Essay: My Favourite Holiday', course: 'English', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
+    { title: 'Lab Report: Acid & Bases', course: 'Science', dueDate: 'Dec 19, 2025', status: 'submitted' as const },
   ],
   graded: [
-    { title: 'React Portfolio Project', course: 'Web Development', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
-    { title: 'Sorting Algorithms Analysis', course: 'Data Structures & Algorithms', dueDate: 'Dec 15, 2025', status: 'graded' as const, grade: '88', maxGrade: '100' },
-    { title: 'Process Scheduling Simulation', course: 'Operating Systems', dueDate: 'Dec 12, 2025', status: 'graded' as const, grade: '92', maxGrade: '100' },
+    { title: 'Kabir Ke Dohe', course: 'Hindi', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
+    { title: 'Geometry Test', course: 'Mathematics', dueDate: 'Dec 15, 2025', status: 'graded' as const, grade: '88', maxGrade: '100' },
+    { title: 'History Timeline', course: 'Social Studies', dueDate: 'Dec 12, 2025', status: 'graded' as const, grade: '92', maxGrade: '100' },
   ],
   overdue: [
-    { title: 'Thread Synchronization Lab', course: 'Operating Systems', dueDate: 'Dec 10, 2025', status: 'overdue' as const },
+    { title: 'Grammar Worksheet', course: 'English', dueDate: 'Dec 10, 2025', status: 'overdue' as const },
   ],
 };
 

@@ -6,17 +6,17 @@ import { Badge } from '@/components/common/Badge';
 import { UserPlus, Search, Filter, Download } from 'lucide-react';
 
 const applications = [
-    { id: '1', name: 'Alice Thompson', program: 'Computer Science', date: 'Dec 18, 2025', status: 'pending', score: '92%' },
-    { id: '2', name: 'Bob Roberts', program: 'Mechanical Engineering', date: 'Dec 15, 2025', status: 'approved', score: '88%' },
-    { id: '3', name: 'Charlie Davis', program: 'Electrical Engineering', date: 'Dec 14, 2025', status: 'rejected', score: '75%' },
-    { id: '4', name: 'Diana Prince', program: 'Business Admin', date: 'Dec 12, 2025', status: 'approved', score: '95%' },
-    { id: '5', name: 'Edward Norton', program: 'Civil Engineering', date: 'Dec 10, 2025', status: 'pending', score: '82%' },
+    { id: '1', name: 'Alice Thompson', program: 'Grade 10', date: 'Dec 18, 2025', status: 'pending', score: '92%' },
+    { id: '2', name: 'Bob Roberts', program: 'Grade 9', date: 'Dec 15, 2025', status: 'approved', score: '88%' },
+    { id: '3', name: 'Charlie Davis', program: 'Grade 11 (Science)', date: 'Dec 14, 2025', status: 'rejected', score: '75%' },
+    { id: '4', name: 'Diana Prince', program: 'Grade 8', date: 'Dec 12, 2025', status: 'approved', score: '95%' },
+    { id: '5', name: 'Edward Norton', program: 'Grade 11 (Commerce)', date: 'Dec 10, 2025', status: 'pending', score: '82%' },
 ];
 
 export function InstitutionAdmissions() {
     const columns = [
         { key: 'name', header: 'Applicant Name' },
-        { key: 'program', header: 'Program' },
+        { key: 'program', header: 'Class/Grade' },
         { key: 'date', header: 'Applied On' },
         { key: 'score', header: 'Eligibility Score' },
         {

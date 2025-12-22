@@ -41,7 +41,7 @@ export function StudentCertificates() {
 
     const handleDownload = (filename: string) => {
         const link = document.createElement('a');
-        link.href = '/certificate-template.jpg';
+        link.href = '/certificate-template-new.jpg';
         link.download = `${filename}.jpg`;
         document.body.appendChild(link);
         link.click();

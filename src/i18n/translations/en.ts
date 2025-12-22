@@ -55,7 +55,7 @@ export const en = {
     // Navigation
     nav: {
         dashboard: 'Dashboard',
-        courses: 'My Courses',
+        courses: 'My Subject',
         timetable: 'Timetable',
         attendance: 'Attendance',
         assignments: 'Assignments',

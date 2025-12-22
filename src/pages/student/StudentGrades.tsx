@@ -5,15 +5,15 @@ import { useTranslation } from '@/i18n/TranslationContext';
 import { TrendingUp, Award } from 'lucide-react';
 
 const gradesData = [
-    { course: 'Data Structures & Algorithms', code: 'CS201', midterm: 85, assignments: 90, final: 88, total: 88, grade: 'A', credits: 4 },
-    { course: 'Database Management Systems', code: 'CS301', midterm: 78, assignments: 85, final: 82, total: 82, grade: 'A-', credits: 4 },
-    { course: 'Web Development', code: 'CS205', midterm: 92, assignments: 95, final: 90, total: 92, grade: 'A+', credits: 3 },
-    { course: 'Operating Systems', code: 'CS302', midterm: 75, assignments: 80, final: 78, total: 78, grade: 'B+', credits: 4 },
-    { course: 'Computer Networks', code: 'CS303', midterm: 88, assignments: 85, final: 86, total: 86, grade: 'A', credits: 3 },
+    { course: 'Mathematics', code: 'MAT10', midterm: 85, assignments: 90, final: 88, total: 88, grade: 'A1', credits: 4 },
+    { course: 'Science', code: 'SCI10', midterm: 78, assignments: 85, final: 82, total: 82, grade: 'A2', credits: 4 },
+    { course: 'English', code: 'ENG10', midterm: 92, assignments: 95, final: 90, total: 92, grade: 'A1', credits: 3 },
+    { course: 'Social Studies', code: 'SST10', midterm: 75, assignments: 80, final: 78, total: 78, grade: 'B1', credits: 4 },
+    { course: 'Hindi', code: 'HIN10', midterm: 88, assignments: 85, final: 86, total: 86, grade: 'A2', credits: 3 },
 ];
 
-const semesterGPA = 3.75;
-const cumulativeGPA = 3.68;
+const semesterPercentage = '85%';
+const overallPercentage = '83%';
 
 export function StudentGrades() {
     const { t } = useTranslation();
@@ -29,11 +29,11 @@ export function StudentGrades() {
                 <div className="dashboard-card">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-muted-foreground mb-1">Semester GPA</p>
-                            <h3 className="text-3xl font-bold text-primary">{semesterGPA}</h3>
+                            <p className="text-sm text-muted-foreground mb-1">Semester %</p>
+                            <h3 className="text-3xl font-bold text-primary">{semesterPercentage}</h3>
                             <p className="text-sm text-success mt-1 flex items-center gap-1">
                                 <TrendingUp className="w-4 h-4" />
-                                +0.15 from last semester
+                                +2% from last semester
                             </p>
                         </div>
                         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -45,8 +45,8 @@ export function StudentGrades() {
                 <div className="dashboard-card">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-muted-foreground mb-1">Cumulative GPA</p>
-                            <h3 className="text-3xl font-bold text-foreground">{cumulativeGPA}</h3>
+                            <p className="text-sm text-muted-foreground mb-1">Overall %</p>
+                            <h3 className="text-3xl font-bold text-foreground">{overallPercentage}</h3>
                             <p className="text-sm text-muted-foreground mt-1">Overall Performance</p>
                         </div>
                         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
