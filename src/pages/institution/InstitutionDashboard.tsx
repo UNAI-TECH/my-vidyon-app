@@ -12,7 +12,7 @@ import {
   Users,
   Building,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   UserPlus,
 } from 'lucide-react';
 
@@ -117,8 +117,8 @@ export function InstitutionDashboard() {
         />
         <StatCard
           title="Revenue (YTD)"
-          value="$12.5M"
-          icon={DollarSign}
+          value="₹12.5M"
+          icon={IndianRupee}
           iconColor="text-success"
           change="+15% vs last year"
           changeType="positive"

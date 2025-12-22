@@ -3,14 +3,14 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
-import { DollarSign, Plus, Download, Edit } from 'lucide-react';
+import { IndianRupee, Plus, Download, Edit } from 'lucide-react';
 
 const feeStructures = [
-    { id: '1', category: 'Tuition Fee - Engineering', frequency: 'Annual', amount: '$12,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
-    { id: '2', category: 'Tuition Fee - Business', frequency: 'Annual', amount: '$10,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
-    { id: '3', category: 'Library & Lab Fees', frequency: 'Semester', amount: '$1,200', lastUpdated: 'Nov 15, 2025', status: 'active' },
-    { id: '4', category: 'Examination Fee', frequency: 'Per Exam', amount: '$200', lastUpdated: 'Nov 10, 2025', status: 'active' },
-    { id: '5', category: 'Hostel & Mess', frequency: 'Annual', amount: '$4,500', lastUpdated: 'Dec 05, 2025', status: 'active' },
+    { id: '1', category: 'Tuition Fee - Engineering', frequency: 'Annual', amount: '₹12,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
+    { id: '2', category: 'Tuition Fee - Business', frequency: 'Annual', amount: '₹10,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
+    { id: '3', category: 'Library & Lab Fees', frequency: 'Semester', amount: '₹1,200', lastUpdated: 'Nov 15, 2025', status: 'active' },
+    { id: '4', category: 'Examination Fee', frequency: 'Per Exam', amount: '₹200', lastUpdated: 'Nov 10, 2025', status: 'active' },
+    { id: '5', category: 'Hostel & Mess', frequency: 'Annual', amount: '₹4,500', lastUpdated: 'Dec 05, 2025', status: 'active' },
 ];
 
 export function InstitutionFees() {
@@ -63,38 +63,38 @@ export function InstitutionFees() {
                 <div className="dashboard-card">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-success/10 rounded-lg text-success">
-                            <DollarSign className="w-5 h-5" />
+                            <IndianRupee className="w-5 h-5" />
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Total Revenue (YTD)</span>
                     </div>
-                    <span className="text-2xl font-bold">$12.5M</span>
+                    <span className="text-2xl font-bold">₹12.5M</span>
                 </div>
                 <div className="dashboard-card">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <DollarSign className="w-5 h-5" />
+                            <IndianRupee className="w-5 h-5" />
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Outstanding</span>
                     </div>
-                    <span className="text-2xl font-bold">$1.2M</span>
+                    <span className="text-2xl font-bold">₹1.2M</span>
                 </div>
                 <div className="dashboard-card">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-info/10 rounded-lg text-info">
-                            <DollarSign className="w-5 h-5" />
+                            <IndianRupee className="w-5 h-5" />
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Scholarships</span>
                     </div>
-                    <span className="text-2xl font-bold">$450K</span>
+                    <span className="text-2xl font-bold">₹450K</span>
                 </div>
                 <div className="dashboard-card">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-warning/10 rounded-lg text-warning">
-                            <DollarSign className="w-5 h-5" />
+                            <IndianRupee className="w-5 h-5" />
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Refunds</span>
                     </div>
-                    <span className="text-2xl font-bold">$85K</span>
+                    <span className="text-2xl font-bold">₹85K</span>
                 </div>
             </div>
 

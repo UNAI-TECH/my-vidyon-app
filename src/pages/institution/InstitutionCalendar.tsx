@@ -25,11 +25,11 @@ import {
 import { toast } from "sonner";
 
 const initialEvents = [
-    { id: '1', title: 'Spring Semester Begins', date: 'Jan 15, 2026', type: 'academic', category: 'Major Event' },
-    { id: '2', title: 'Mid-Term Examinations', date: 'Mar 10-20, 2026', type: 'exam', category: 'Examination' },
-    { id: '3', title: 'Annual Cultural Fest', date: 'Apr 05, 2026', type: 'cultural', category: 'Event' },
-    { id: '4', title: 'End Semester Holidays', date: 'May 25, 2026', type: 'holiday', category: 'Holiday' },
-    { id: '5', title: 'Graduation Ceremony', date: 'Jun 10, 2026', type: 'academic', category: 'Ceremony' },
+    { id: '1', title: 'New Academic Session', date: 'Apr 01, 2026', type: 'academic', category: 'Major Event' },
+    { id: '2', title: 'Unit Test I', date: 'May 10-15, 2026', type: 'exam', category: 'Examination' },
+    { id: '3', title: 'Annual Sports Day', date: 'Nov 14, 2026', type: 'cultural', category: 'Event' },
+    { id: '4', title: 'Summer Vacation', date: 'May 25 - Jun 30, 2026', type: 'holiday', category: 'Holiday' },
+    { id: '5', title: 'Annual Function', date: 'Dec 20, 2026', type: 'cultural', category: 'Ceremony' },
 ];
 
 export function InstitutionCalendar() {
@@ -163,7 +163,7 @@ export function InstitutionCalendar() {
                                     <span className={`text-sm ${i + 1 === 15 ? 'font-bold text-primary' : ''}`}>{i + 1}</span>
                                     {i + 1 === 15 && (
                                         <div className="mt-1 p-1 text-[10px] bg-primary/20 text-primary-foreground rounded truncate">
-                                            Spring Sem
+                                            New Session
                                         </div>
                                     )}
                                     {i + 1 === 26 && (

@@ -26,11 +26,11 @@ import {
 import { toast } from "sonner";
 
 const initialCourses = [
-    { id: '1', name: 'Data Structures', code: 'CS201', department: 'Computer Science', credits: 4, instructor: 'Dr. John Doe', students: 45 },
-    { id: '2', name: 'Microprocessors', code: 'EE302', department: 'Electrical Engineering', credits: 3, instructor: 'Prof. Jane Smith', students: 38 },
-    { id: '3', name: 'Thermodynamics', code: 'ME101', department: 'Mechanical Engineering', credits: 4, instructor: 'Dr. Robert Wilson', students: 52 },
-    { id: '4', name: 'Marketing Management', code: 'BA405', department: 'Business Admin', credits: 3, instructor: 'Ms. Sarah Parker', students: 40 },
-    { id: '5', name: 'Structural Analysis', code: 'CE202', department: 'Civil Engineering', credits: 4, instructor: 'Dr. Michael Davis', students: 30 },
+    { id: '1', name: 'Mathematics', code: 'MATH10', department: 'Mathematics', credits: 10, instructor: 'Mr. R. Sharma', students: 45 },
+    { id: '2', name: 'Physics', code: 'PHY12', department: 'Science', credits: 12, instructor: 'Mrs. S. Verma', students: 38 },
+    { id: '3', name: 'English Literature', code: 'ENG09', department: 'English', credits: 9, instructor: 'Ms. A. Davis', students: 52 },
+    { id: '4', name: 'Social Studies', code: 'SOC10', department: 'Social Studies', credits: 10, instructor: 'Mr. K. Singh', students: 40 },
+    { id: '5', name: 'Chemistry', code: 'CHEM12', department: 'Science', credits: 12, instructor: 'Dr. M. Gupta', students: 30 },
 ];
 
 export function InstitutionCourses() {
@@ -68,8 +68,8 @@ export function InstitutionCourses() {
     const columns = [
         { key: 'code', header: 'Code' },
         { key: 'name', header: 'Course Name' },
-        { key: 'department', header: 'Department' },
-        { key: 'credits', header: 'Credits' },
+        { key: 'department', header: 'Department/Subject' },
+        { key: 'credits', header: 'Grade' },
         { key: 'instructor', header: 'Lead Instructor' },
         { key: 'students', header: 'Enrolled' },
         {
@@ -146,24 +146,25 @@ export function InstitutionCourses() {
                                                     <SelectValue placeholder="Select Department" />
                                                 </SelectTrigger>
                                                 <SelectContent>
+                                                    <SelectItem value="Mathematics">Mathematics</SelectItem>
+                                                    <SelectItem value="Science">Science (Phy/Chem/Bio)</SelectItem>
+                                                    <SelectItem value="English">English</SelectItem>
+                                                    <SelectItem value="Hindi">Hindi</SelectItem>
+                                                    <SelectItem value="Social Studies">Social Studies</SelectItem>
                                                     <SelectItem value="Computer Science">Computer Science</SelectItem>
-                                                    <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
-                                                    <SelectItem value="Mechanical Engineering">Mechanical Engineering</SelectItem>
-                                                    <SelectItem value="Business Admin">Business Admin</SelectItem>
-                                                    <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="credits" className="text-right">Credits</Label>
+                                        <Label htmlFor="credits" className="text-right">Grade</Label>
                                         <Input
                                             id="credits"
                                             type="number"
                                             value={newCourse.credits}
                                             onChange={(e) => setNewCourse({ ...newCourse, credits: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="e.g. 3"
+                                            placeholder="e.g. 10"
                                         />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Building2,
     MapPin,
@@ -81,6 +81,9 @@ const steps = [
 
 export function AddInstitution() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const isEditMode = searchParams.get('mode') === 'edit';
+    const editId = searchParams.get('id');
     const [currentStep, setCurrentStep] = useState(1);
 
     // Step 1: Basic Details
@@ -268,7 +271,7 @@ export function AddInstitution() {
             case 1:
                 return (
                     <div className="space-y-6">
-                        <h3 className="text-lg font-semibold mb-4">Basic Institution Details</h3>
+                        <h3 className="text-lg font-semibold mb-4">{isEditMode ? 'Edit Institution Details' : 'Basic Institution Details'}</h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
@@ -954,10 +957,10 @@ export function AddInstitution() {
                                 <div className="flex flex-col items-center flex-1">
                                     <div
                                         className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${isCompleted
-                                                ? 'bg-success border-success text-white'
-                                                : isActive
-                                                    ? 'bg-primary border-primary text-white'
-                                                    : 'bg-background border-border text-muted-foreground'
+                                            ? 'bg-success border-success text-white'
+                                            : isActive
+                                                ? 'bg-primary border-primary text-white'
+                                                : 'bg-background border-border text-muted-foreground'
                                             }`}
                                     >
                                         {isCompleted ? (

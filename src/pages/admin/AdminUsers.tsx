@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, GraduationCap, Building2, Shield, Plus, Search, MoreHorizontal } from 'lucide-react';
 
-const users = [
+import { useSearchParams } from 'react-router-dom';
+
+const allUsers = [
   { id: 1, name: 'John Smith', email: 'john.smith@stanford.edu', role: 'student', institution: 'Stanford University', status: 'active', lastLogin: '2 hours ago' },
   { id: 2, name: 'Dr. Sarah Williams', email: 'sarah.w@mit.edu', role: 'faculty', institution: 'MIT', status: 'active', lastLogin: '1 day ago' },
   { id: 3, name: 'Prof. Michael Chen', email: 'admin@oxford.edu', role: 'institution', institution: 'Oxford University', status: 'active', lastLogin: '3 hours ago' },
@@ -16,14 +18,22 @@ const users = [
   { id: 6, name: 'System Admin', email: 'superadmin@erp.com', role: 'admin', institution: 'Platform', status: 'active', lastLogin: 'Just now' },
 ];
 
+
+
 export function AdminUsers() {
+  const [searchParams] = useSearchParams();
+  const institutionFilter = searchParams.get('institution');
+
+  const users = institutionFilter
+    ? allUsers.filter(u => u.institution.includes(institutionFilter) || u.institution === institutionFilter)
+    : allUsers;
   const columns = [
     { key: 'name', header: 'Name' },
     { key: 'email', header: 'Email' },
     {
       key: 'role',
       header: 'Role',
-      render: (item: typeof users[0]) => {
+      render: (item: typeof allUsers[0]) => {
         const variants: Record<string, 'info' | 'success' | 'warning' | 'default'> = {
           student: 'info',
           faculty: 'success',
@@ -37,7 +47,7 @@ export function AdminUsers() {
     {
       key: 'status',
       header: 'Status',
-      render: (item: typeof users[0]) => (
+      render: (item: typeof allUsers[0]) => (
         <Badge variant={item.status === 'active' ? 'success' : 'outline'}>
           {item.status}
         </Badge>

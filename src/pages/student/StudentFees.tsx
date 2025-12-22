@@ -38,7 +38,7 @@ export function StudentFees() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground mb-1">Total Fees</p>
-                            <h3 className="text-2xl font-bold">${totalFees.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-bold">₹{totalFees.toLocaleString()}</h3>
                         </div>
                         <CreditCard className="w-10 h-10 text-muted-foreground" />
                     </div>
@@ -48,7 +48,7 @@ export function StudentFees() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground mb-1">Paid</p>
-                            <h3 className="text-2xl font-bold text-success">${paidFees.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-bold text-success">₹{paidFees.toLocaleString()}</h3>
                         </div>
                         <CheckCircle className="w-10 h-10 text-success" />
                     </div>
@@ -58,7 +58,7 @@ export function StudentFees() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground mb-1">Pending</p>
-                            <h3 className="text-2xl font-bold text-warning">${pendingFees.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-bold text-warning">₹{pendingFees.toLocaleString()}</h3>
                         </div>
                         <AlertCircle className="w-10 h-10 text-warning" />
                     </div>
@@ -89,7 +89,7 @@ export function StudentFees() {
                             {feeStructure.map((fee, index) => (
                                 <tr key={index} className="border-b border-border hover:bg-muted/50">
                                     <td className="table-cell font-medium">{fee.item}</td>
-                                    <td className="table-cell text-right">${fee.amount.toLocaleString()}</td>
+                                    <td className="table-cell text-right">₹{fee.amount.toLocaleString()}</td>
                                     <td className="table-cell text-center">
                                         <Badge variant={fee.status === 'paid' ? 'success' : 'warning'}>
                                             {fee.status === 'paid' ? 'Paid' : 'Pending'}
@@ -111,7 +111,7 @@ export function StudentFees() {
                         <tfoot>
                             <tr className="border-t-2 border-border font-semibold">
                                 <td className="table-cell">Total</td>
-                                <td className="table-cell text-right">${totalFees.toLocaleString()}</td>
+                                <td className="table-cell text-right">₹{totalFees.toLocaleString()}</td>
                                 <td colSpan={2}></td>
                             </tr>
                         </tfoot>
@@ -136,7 +136,7 @@ export function StudentFees() {
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="font-semibold">${payment.amount.toLocaleString()}</p>
+                                <p className="font-semibold">₹{payment.amount.toLocaleString()}</p>
                                 <Badge variant="success" className="mt-1">Completed</Badge>
                             </div>
                         </div>

@@ -43,7 +43,7 @@ export function LoginPage() {
         {/* Logo and Title */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center">
-            <img src="/logo.png" alt="Vidyon Logo" className="w-48 h-auto" />
+            <img src="/vidyon-logo.png" alt="Vidyon Logo" className="w-48 h-auto" />
           </div>
         </div>
 

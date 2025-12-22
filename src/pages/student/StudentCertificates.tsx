@@ -39,6 +39,15 @@ const certificates = [
 export function StudentCertificates() {
     const { t } = useTranslation();
 
+    const handleDownload = (filename: string) => {
+        const link = document.createElement('a');
+        link.href = '/certificate-template.jpg';
+        link.download = `${filename}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <StudentLayout>
             <PageHeader
@@ -79,7 +88,10 @@ export function StudentCertificates() {
                         </div>
 
                         {cert.status === 'available' ? (
-                            <Button className="w-full btn-primary flex items-center justify-center gap-2">
+                            <Button
+                                className="w-full btn-primary flex items-center justify-center gap-2"
+                                onClick={() => handleDownload(cert.title.replace(/\s+/g, '_').toLowerCase())}
+                            >
                                 <Download className="w-4 h-4" />
                                 Download Certificate
                             </Button>

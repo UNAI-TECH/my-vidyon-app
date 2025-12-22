@@ -33,14 +33,14 @@ const gradeDistribution = [
 
 const enrolledSubjects = [
   { title: 'Mathematics', code: 'Grade 10', instructor: 'Dr. Smith', progress: 75, students: 45, schedule: 'Mon, Wed 10:00 AM' },
-  { title: 'General Science', code: 'Grade 10', instructor: 'Prof. Johnson', progress: 60, students: 52, schedule: 'Tue, Thu 2:00 PM' },
-  { title: 'English Literature', code: 'Grade 10', instructor: 'Ms. Davis', progress: 85, students: 38, schedule: 'Mon, Fri 11:00 AM' },
+  { title: 'Chemistry', code: 'Grade 10', instructor: 'Mrs. Sharma', progress: 60, students: 52, schedule: 'Tue, Thu 2:00 PM' },
+  { title: 'English', code: 'Grade 10', instructor: 'Ms. Davis', progress: 85, students: 38, schedule: 'Mon, Fri 11:00 AM' },
 ];
 
 const upcomingAssignments = [
   { title: 'Algebra Homework', course: 'Mathematics', dueDate: 'Dec 22, 2025', status: 'pending' as const },
-  { title: 'Physics Lab Report', course: 'General Science', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
-  { title: 'Shakespeare Essay', course: 'English Literature', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
+  { title: 'Periodic Table Project', course: 'Chemistry', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
+  { title: 'Poetry Analysis', course: 'English', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
 ];
 
 const notifications = [

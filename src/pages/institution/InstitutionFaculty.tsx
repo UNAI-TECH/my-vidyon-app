@@ -19,11 +19,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 const initialFaculty = [
-    { id: '1', name: 'Dr. John Doe', role: 'Professor', department: 'Computer Science', email: 'john.doe@edu.com', phone: '+1 234 567 8901', joinDate: 'Aug 2020' },
-    { id: '2', name: 'Prof. Jane Smith', role: 'Associate Professor', department: 'Electrical Engineering', email: 'jane.smith@edu.com', phone: '+1 234 567 8902', joinDate: 'Sep 2019' },
-    { id: '3', name: 'Dr. Robert Wilson', role: 'Professor', department: 'Mechanical Engineering', email: 'robert.w@edu.com', phone: '+1 234 567 8903', joinDate: 'Jan 2021' },
-    { id: '4', name: 'Ms. Sarah Parker', role: 'Lecturer', department: 'Business Admin', email: 'sarah.p@edu.com', phone: '+1 234 567 8904', joinDate: 'Aug 2022' },
-    { id: '5', name: 'Dr. Michael Davis', role: 'Assistant Professor', department: 'Civil Engineering', email: 'm.davis@edu.com', phone: '+1 234 567 8905', joinDate: 'Mar 2020' },
+    { id: '1', name: 'Mr. Rajesh Sharma', role: 'PGT - Mathematics', department: 'Mathematics', email: 'r.sharma@school.edu', phone: '+91 98765 43210', joinDate: 'Apr 2018' },
+    { id: '2', name: 'Mrs. Sunita Verma', role: 'PGT - Physics', department: 'Science', email: 's.verma@school.edu', phone: '+91 98765 43211', joinDate: 'Jun 2019' },
+    { id: '3', name: 'Ms. Anita Das', role: 'TGT - English', department: 'English', email: 'a.das@school.edu', phone: '+91 98765 43212', joinDate: 'Jan 2021' },
+    { id: '4', name: 'Mr. Vikram Singh', role: 'TGT - Social Studies', department: 'Social Studies', email: 'v.singh@school.edu', phone: '+91 98765 43213', joinDate: 'Apr 2022' },
+    { id: '5', name: 'Dr. Manoj Gupta', role: 'PGT - Chemistry', department: 'Science', email: 'm.gupta@school.edu', phone: '+91 98765 43214', joinDate: 'Mar 2020' },
 ];
 
 export function InstitutionFaculty() {
@@ -139,7 +139,7 @@ export function InstitutionFaculty() {
                                             value={newFaculty.role}
                                             onChange={(e) => setNewFaculty({ ...newFaculty, role: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="e.g. Professor"
+                                            placeholder="e.g. PGT/TGT"
                                         />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
@@ -149,7 +149,7 @@ export function InstitutionFaculty() {
                                             value={newFaculty.department}
                                             onChange={(e) => setNewFaculty({ ...newFaculty, department: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="e.g. Computer Science"
+                                            placeholder="e.g. Science"
                                         />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
@@ -170,7 +170,7 @@ export function InstitutionFaculty() {
                                             value={newFaculty.phone}
                                             onChange={(e) => setNewFaculty({ ...newFaculty, phone: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="+1 234 567 890"
+                                            placeholder="+91 98765 43210"
                                         />
                                     </div>
                                 </div>

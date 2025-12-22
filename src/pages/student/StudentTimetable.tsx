@@ -6,40 +6,40 @@ import { Calendar, Clock } from 'lucide-react';
 const timetableData = [
     {
         day: 'Monday', slots: [
-            { time: '9:00 - 10:00', subject: 'Data Structures', room: 'LH-101', faculty: 'Dr. Smith' },
-            { time: '10:00 - 11:00', subject: 'Web Development', room: 'Lab-2', faculty: 'Ms. Davis' },
+            { time: '9:00 - 10:00', subject: 'Mathematics', room: 'Room 10A', faculty: 'Mr. Sharma' },
+            { time: '10:00 - 11:00', subject: 'English', room: 'Room 10A', faculty: 'Ms. Davis' },
             { time: '11:00 - 12:00', subject: 'Break', room: '-', faculty: '-' },
-            { time: '12:00 - 1:00', subject: 'Database Systems', room: 'LH-205', faculty: 'Prof. Johnson' },
+            { time: '12:00 - 1:00', subject: 'Physics', room: 'Lab 1', faculty: 'Mrs. Verma' },
         ]
     },
     {
         day: 'Tuesday', slots: [
-            { time: '9:00 - 10:00', subject: 'Database Systems', room: 'LH-205', faculty: 'Prof. Johnson' },
-            { time: '10:00 - 11:00', subject: 'Free Period', room: '-', faculty: '-' },
+            { time: '9:00 - 10:00', subject: 'Chemistry', room: 'Lab 2', faculty: 'Mr. Gupta' },
+            { time: '10:00 - 11:00', subject: 'Social Science', room: 'Room 10A', faculty: 'Mr. Das' },
             { time: '11:00 - 12:00', subject: 'Break', room: '-', faculty: '-' },
-            { time: '12:00 - 1:00', subject: 'Data Structures', room: 'LH-101', faculty: 'Dr. Smith' },
+            { time: '12:00 - 1:00', subject: 'Mathematics', room: 'Room 10A', faculty: 'Mr. Sharma' },
         ]
     },
     {
         day: 'Wednesday', slots: [
-            { time: '9:00 - 10:00', subject: 'Data Structures', room: 'LH-101', faculty: 'Dr. Smith' },
-            { time: '10:00 - 11:00', subject: 'Web Development', room: 'Lab-2', faculty: 'Ms. Davis' },
+            { time: '9:00 - 10:00', subject: 'English', room: 'Room 10A', faculty: 'Ms. Davis' },
+            { time: '10:00 - 11:00', subject: 'Hindi', room: 'Room 10A', faculty: 'Mrs. Singh' },
             { time: '11:00 - 12:00', subject: 'Break', room: '-', faculty: '-' },
-            { time: '12:00 - 1:00', subject: 'Free Period', room: '-', faculty: '-' },
+            { time: '12:00 - 1:00', subject: 'Computer Science', room: 'Lab 3', faculty: 'Ms. Iyer' },
         ]
     },
     {
         day: 'Thursday', slots: [
-            { time: '9:00 - 10:00', subject: 'Database Systems', room: 'LH-205', faculty: 'Prof. Johnson' },
-            { time: '10:00 - 11:00', subject: 'Free Period', room: '-', faculty: '-' },
+            { time: '9:00 - 10:00', subject: 'Mathematics', room: 'Room 10A', faculty: 'Mr. Sharma' },
+            { time: '10:00 - 11:00', subject: 'Biology', room: 'Lab 4', faculty: 'Dr. Reddy' },
             { time: '11:00 - 12:00', subject: 'Break', room: '-', faculty: '-' },
-            { time: '12:00 - 1:00', subject: 'Data Structures Lab', room: 'Lab-1', faculty: 'Dr. Smith' },
+            { time: '12:00 - 1:00', subject: 'Social Science', room: 'Room 10A', faculty: 'Mr. Das' },
         ]
     },
     {
         day: 'Friday', slots: [
-            { time: '9:00 - 10:00', subject: 'Web Development', room: 'Lab-2', faculty: 'Ms. Davis' },
-            { time: '10:00 - 11:00', subject: 'Database Lab', room: 'Lab-3', faculty: 'Prof. Johnson' },
+            { time: '9:00 - 10:00', subject: 'Geography', room: 'Room 10A', faculty: 'Ms. Iyer' },
+            { time: '10:00 - 11:00', subject: 'Physical Education', room: 'Ground', faculty: 'Mr. Khan' },
             { time: '11:00 - 12:00', subject: 'Break', room: '-', faculty: '-' },
             { time: '12:00 - 1:00', subject: 'Free Period', room: '-', faculty: '-' },
         ]

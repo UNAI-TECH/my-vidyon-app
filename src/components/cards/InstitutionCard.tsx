@@ -14,6 +14,9 @@ interface InstitutionCardProps {
   classes?: number;
   sections?: number;
   onClick?: () => void;
+  onEdit?: () => void;
+  onUsers?: () => void;
+  onAnalytics?: () => void;
 }
 
 export function InstitutionCard({
@@ -28,6 +31,9 @@ export function InstitutionCard({
   classes,
   sections,
   onClick,
+  onEdit,
+  onUsers,
+  onAnalytics,
 }: InstitutionCardProps) {
   const statusVariant = {
     active: 'success',
@@ -39,11 +45,13 @@ export function InstitutionCard({
     e.stopPropagation();
 
     if (action === 'view' && onClick) {
-      // Trigger the main onClick which navigates to detail page
       onClick();
-    } else {
-      console.log(`Quick action: ${action} for ${code}`);
-      // Other actions will be implemented later
+    } else if (action === 'edit' && onEdit) {
+      onEdit();
+    } else if (action === 'users' && onUsers) {
+      onUsers();
+    } else if (action === 'analytics' && onAnalytics) {
+      onAnalytics();
     }
   };
 
