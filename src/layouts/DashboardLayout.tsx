@@ -15,6 +15,7 @@ import {
   Building2,
   Shield,
   Users,
+  User as UserIcon,
 } from 'lucide-react';
 import {
   Sheet,
@@ -51,6 +52,19 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
 
   if (!user) return null;
 
+  const getSettingsPath = () => {
+    switch (user.role) {
+      case 'admin': return '/admin/settings';
+      case 'institution': return '/institution/settings';
+      case 'parent': return '/parent/settings';
+      case 'faculty': return '/faculty/settings';
+      case 'student': return '/student/settings';
+      default: return `/${user.role}`;
+    }
+  };
+
+  const settingsPath = getSettingsPath();
+
   const RoleIcon = roleIcons[user.role];
 
   return (
@@ -65,8 +79,8 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </button>
 
         <div className="flex items-center gap-2">
-          <RoleIcon className={cn('w-5 h-5', roleColor)} />
-          <span className="font-semibold">{ROLE_LABELS[user.role]} Portal</span>
+          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className="h-10 w-auto" />
+          <span className="font-semibold text-sm hidden sm:block">{ROLE_LABELS[user.role]} Portal</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -87,17 +101,17 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
 
       {/* Sidebar */}
       <aside className={cn(
-        'fixed top-0 left-0 h-full bg-sidebar z-40 transition-all duration-300',
+        'fixed top-0 left-0 h-full bg-sidebar-gradient z-40 transition-all duration-300',
         sidebarOpen ? 'w-64' : 'w-20',
         'hidden lg:block'
       )}>
-        {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-sidebar-border">
-          <RoleIcon className={cn('w-8 h-8 flex-shrink-0', roleColor)} />
+        <div className="h-16 flex items-center gap-3 px-4 border-b border-sidebar-border bg-sidebar-gradient overflow-hidden">
+          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className={cn("h-12 w-auto transition-all", !sidebarOpen && "mx-auto")} />
           {sidebarOpen && (
-            <div className="animate-fade-in">
-              <span className="font-bold text-sidebar-foreground">My Vidyon</span>
-              <span className="text-xs text-sidebar-muted block">{ROLE_LABELS[user.role]}</span>
+            <div className="animate-fade-in truncate">
+              <span className="text-[10px] text-black font-bold uppercase tracking-wider block opacity-70 leading-none">
+                {ROLE_LABELS[user.role]} Portal
+              </span>
             </div>
           )}
         </div>
@@ -126,23 +140,32 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
 
 
         {/* User Profile */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border bg-sidebar-gradient">
           <div className={cn('flex items-center gap-3', !sidebarOpen && 'justify-center')}>
-            <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-medium text-sidebar-foreground">
-                {user.name.split(' ').map(n => n[0]).join('')}
-              </span>
-            </div>
-            {sidebarOpen && (
-              <div className="flex-1 min-w-0 animate-fade-in">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
-                <p className="text-xs text-sidebar-muted truncate">{user.email}</p>
+            <Link
+              to={settingsPath}
+              className={cn(
+                'flex items-center gap-3 flex-1 min-w-0 p-2 rounded-lg hover:bg-sidebar-accent transition-colors group',
+                !sidebarOpen && 'justify-center p-0'
+              )}
+            >
+              <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                <span className="text-sm font-medium text-sidebar-foreground group-hover:text-primary transition-colors">
+                  {user.name.split(' ').map(n => n[0]).join('')}
+                </span>
               </div>
-            )}
+              {sidebarOpen && (
+                <div className="flex-1 min-w-0 animate-fade-in text-left">
+                  <p className="text-sm font-bold text-sidebar-foreground truncate group-hover:text-primary transition-colors">{user.name}</p>
+                  <p className="text-xs text-sidebar-muted truncate group-hover:text-sidebar-foreground transition-colors">{user.email}</p>
+                </div>
+              )}
+            </Link>
             <button
               onClick={logout}
+              title="Logout"
               className={cn(
-                'p-2 rounded-lg text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors',
+                'p-2 rounded-lg text-sidebar-muted hover:text-destructive hover:bg-destructive/10 transition-colors',
                 !sidebarOpen && 'hidden'
               )}
             >
@@ -163,7 +186,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-30 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
-          <div className="w-64 h-full bg-sidebar" onClick={e => e.stopPropagation()}>
+          <div className="w-64 h-full bg-sidebar-gradient" onClick={e => e.stopPropagation()}>
             <div className="pt-20 p-4 space-y-1">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.href;
@@ -179,6 +202,29 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
                   </Link>
                 );
               })}
+              <div className="pt-4 border-t border-sidebar-border mt-4">
+                <Link
+                  to={settingsPath}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'nav-link mb-2',
+                    location.pathname === settingsPath && 'nav-link-active'
+                  )}
+                >
+                  <UserIcon className="w-5 h-5" />
+                  <span>View Profile</span>
+                </Link>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                  }}
+                  className="nav-link text-destructive hover:bg-destructive/10 w-full"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -216,6 +262,20 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
                 <NotificationPanel />
               </SheetContent>
             </Sheet>
+
+            <Link
+              to={settingsPath}
+              className="flex items-center gap-3 p-1.5 rounded-full border border-border hover:border-primary/50 hover:bg-muted/50 transition-all bg-card shadow-sm pr-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs ring-2 ring-primary/20">
+                {user.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div className="hidden xl:block text-left">
+                <p className="text-xs font-bold leading-tight">{user.name}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">{ROLE_LABELS[user.role]}</p>
+              </div>
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            </Link>
           </div>
         </header>
 

@@ -13,6 +13,7 @@ import {
   Bell,
   FolderOpen,
   MessageSquare,
+  Settings,
 } from 'lucide-react';
 
 export function StudentLayout({ children }: { children: ReactNode }) {
@@ -30,6 +31,7 @@ export function StudentLayout({ children }: { children: ReactNode }) {
     { label: t.nav.certificates, href: '/student/certificates', icon: Award },
     { label: t.nav.notifications, href: '/student/notifications', icon: Bell },
     { label: t.nav.aiTutor, href: '/student/ai-tutor', icon: MessageSquare },
+    { label: t.nav.settings, href: '/student/settings', icon: Settings },
   ];
 
   return (

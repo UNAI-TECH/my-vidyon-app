@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, GraduationCap, CalendarCheck } from 'lucide-react';
+import { useTranslation } from '@/i18n/TranslationContext';
 
 interface ChildCardProps {
     id: string;
@@ -17,6 +18,10 @@ interface ChildCardProps {
 
 export function ChildCard({ id, name, grade, rollNo, attendance, performance, image }: ChildCardProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation();
+
+    const performanceLabel = performance === 'Excellent' ? t.parent.dashboard.performance.excellent :
+        performance === 'Good' ? t.parent.dashboard.performance.good : t.parent.dashboard.performance.average;
 
     return (
         <Card className="hover:shadow-lg transition-all duration-300 overflow-hidden group">
@@ -35,26 +40,26 @@ export function ChildCard({ id, name, grade, rollNo, attendance, performance, im
                             </h3>
                             <p className="text-sm text-muted-foreground flex items-center gap-2">
                                 <GraduationCap className="w-4 h-4" />
-                                {grade} • Roll: {rollNo}
+                                {grade} • {t.parent.dashboard.roll}: {rollNo}
                             </p>
                         </div>
                     </div>
                     <Badge variant={performance === 'Excellent' ? 'success' : performance === 'Good' ? 'info' : 'warning'}>
-                        {performance}
+                        {performanceLabel}
                     </Badge>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="p-3 bg-muted/50 rounded-lg">
-                        <span className="text-xs text-muted-foreground block mb-1">Attendance</span>
+                        <span className="text-xs text-muted-foreground block mb-1">{t.parent.dashboard.attendance}</span>
                         <div className="flex items-center gap-2">
                             <CalendarCheck className="w-4 h-4 text-primary" />
                             <span className="font-bold text-lg">{attendance}%</span>
                         </div>
                     </div>
                     <div className="p-3 bg-muted/50 rounded-lg">
-                        <span className="text-xs text-muted-foreground block mb-1">Status</span>
-                        <span className="font-semibold text-sm">Active Student</span>
+                        <span className="text-xs text-muted-foreground block mb-1">{t.parent.dashboard.status}</span>
+                        <span className="font-semibold text-sm">{t.parent.dashboard.activeStudent}</span>
                     </div>
                 </div>
 
@@ -63,7 +68,7 @@ export function ChildCard({ id, name, grade, rollNo, attendance, performance, im
                     variant="outline"
                     onClick={() => navigate(`/parent/child/${id}`)}
                 >
-                    View Details
+                    {t.parent.dashboard.viewDetails}
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
             </div>

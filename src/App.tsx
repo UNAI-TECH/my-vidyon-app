@@ -33,6 +33,7 @@ import { StudentFees } from "./pages/student/StudentFees";
 import { StudentCertificates } from "./pages/student/StudentCertificates";
 import { StudentNotifications } from "./pages/student/StudentNotifications";
 import { StudentAITutor } from "./pages/student/StudentAITutor";
+import { StudentSettings } from "./pages/student/StudentSettings";
 
 // Faculty Pages
 import { FacultyDashboard } from "./pages/faculty/FacultyDashboard";
@@ -49,6 +50,7 @@ import { CreateAssignment } from "./pages/faculty/CreateAssignment";
 import { FacultyUploadCertificate } from "./pages/faculty/FacultyUploadCertificate";
 import { CreateSubject } from "./pages/faculty/CreateSubject";
 import { UploadExamPaper } from "./pages/faculty/UploadExamPaper";
+import { FacultySettings } from "./pages/faculty/FacultySettings";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -126,6 +128,7 @@ const App = () => {
                 <Route path="/student/certificates" element={<ProtectedRoute allowedRoles={['student']}><StudentCertificates /></ProtectedRoute>} />
                 <Route path="/student/notifications" element={<ProtectedRoute allowedRoles={['student']}><StudentNotifications /></ProtectedRoute>} />
                 <Route path="/student/ai-tutor" element={<ProtectedRoute allowedRoles={['student']}><StudentAITutor /></ProtectedRoute>} />
+                <Route path="/student/settings" element={<ProtectedRoute allowedRoles={['student']}><StudentSettings /></ProtectedRoute>} />
 
                 {/* Faculty Routes */}
                 <Route path="/faculty" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDashboard /></ProtectedRoute>} />
@@ -142,6 +145,7 @@ const App = () => {
                 <Route path="/faculty/leave" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyLeave /></ProtectedRoute>} />
                 <Route path="/faculty/courses/create" element={<ProtectedRoute allowedRoles={['faculty']}><CreateSubject /></ProtectedRoute>} />
                 <Route path="/faculty/exams/upload" element={<ProtectedRoute allowedRoles={['faculty']}><UploadExamPaper /></ProtectedRoute>} />
+                <Route path="/faculty/settings" element={<ProtectedRoute allowedRoles={['faculty']}><FacultySettings /></ProtectedRoute>} />
 
                 {/* Institution Routes */}
                 <Route path="/institution" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionDashboard /></ProtectedRoute>} />

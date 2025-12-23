@@ -8,13 +8,17 @@ import {
     CalendarDays,
 } from 'lucide-react';
 
+import { useTranslation } from '@/i18n/TranslationContext';
+
 export function ParentLayout({ children }: { children: ReactNode }) {
+    const { t } = useTranslation();
+
     const parentNavItems = [
-        { label: 'Dashboard', href: '/parent', icon: LayoutDashboard },
-        { label: 'Notifications', href: '/parent/notifications', icon: Bell },
-        { label: 'Fees & Payments', href: '/parent/fees', icon: CreditCard },
-        { label: 'Leave Request', href: '/parent/leave', icon: CalendarDays },
-        { label: 'Settings', href: '/parent/settings', icon: Settings },
+        { label: t.nav.dashboard, href: '/parent', icon: LayoutDashboard },
+        { label: t.nav.notifications, href: '/parent/notifications', icon: Bell },
+        { label: t.nav.fees, href: '/parent/fees', icon: CreditCard },
+        { label: t.nav.leave, href: '/parent/leave', icon: CalendarDays },
+        { label: t.nav.settings, href: '/parent/settings', icon: Settings },
     ];
 
     return (

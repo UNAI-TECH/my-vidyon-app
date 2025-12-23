@@ -22,6 +22,7 @@ import {
     XCircle,
     Send
 } from 'lucide-react';
+import { useTranslation } from '@/i18n/TranslationContext';
 
 // Mock Data
 const STUDENT_DATA = {
@@ -71,6 +72,7 @@ const STUDENT_DATA = {
 };
 
 export function ParentChildDetail() {
+    const { t } = useTranslation();
     const { studentId } = useParams();
     const navigate = useNavigate();
     const student = STUDENT_DATA[studentId as keyof typeof STUDENT_DATA];
@@ -85,8 +87,8 @@ export function ParentChildDetail() {
         return (
             <ParentLayout>
                 <div className="flex flex-col items-center justify-center h-[50vh]">
-                    <h2 className="text-2xl font-bold mb-4">Student Not Found</h2>
-                    <Button onClick={() => navigate('/parent')}>Go Back</Button>
+                    <h2 className="text-2xl font-bold mb-4">{t.parent.childDetail.studentNotFound}</h2>
+                    <Button onClick={() => navigate('/parent')}>{t.parent.childDetail.goBack}</Button>
                 </div>
             </ParentLayout>
         );
@@ -94,18 +96,18 @@ export function ParentChildDetail() {
 
     const handleLeaveSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        toast.success(`Leave request submitted for ${student.name}`);
+        toast.success(`${t.parent.leave.submittedSuccess} ${student.name}`);
         setLeaveRequest({ startDate: '', endDate: '', reason: '' });
     };
 
     const marksColumns = [
-        { key: 'subject', header: 'Subject' },
-        { key: 'unitTest', header: 'Unit Test I' },
-        { key: 'midTerm', header: 'Mid Term' },
-        { key: 'final', header: 'Final Exam' },
+        { key: 'subject', header: t.parent.childDetail.subject },
+        { key: 'unitTest', header: t.parent.childDetail.unitTest },
+        { key: 'midTerm', header: t.parent.childDetail.midTerm },
+        { key: 'final', header: t.parent.childDetail.finalExam },
         {
             key: 'grade',
-            header: 'Overall Grade',
+            header: t.parent.childDetail.overallGrade,
             render: (row: any) => (
                 <Badge variant={row.grade.startsWith('A') ? 'success' : 'info'}>{row.grade}</Badge>
             )
@@ -113,12 +115,12 @@ export function ParentChildDetail() {
     ];
 
     const assignmentsColumns = [
-        { key: 'title', header: 'Assignment' },
-        { key: 'subject', header: 'Subject' },
-        { key: 'dueDate', header: 'Due Date' },
+        { key: 'title', header: t.parent.childDetail.assignment },
+        { key: 'subject', header: t.parent.childDetail.subject },
+        { key: 'dueDate', header: t.parent.childDetail.dueDate },
         {
             key: 'status',
-            header: 'Status',
+            header: t.parent.childDetail.status,
             render: (row: any) => (
                 <Badge variant={
                     row.status === 'graded' ? 'success' :
@@ -134,23 +136,23 @@ export function ParentChildDetail() {
         <ParentLayout>
             <PageHeader
                 title={student.name}
-                subtitle={`${student.grade} • Student Performance Overview`}
-                actions={<Button variant="outline" onClick={() => navigate('/parent')}>Back to Dashboard</Button>}
+                subtitle={`${student.grade} • ${t.parent.childDetail.performanceOverview}`}
+                actions={<Button variant="outline" onClick={() => navigate('/parent')}>{t.parent.childDetail.backToDashboard}</Button>}
             />
 
             <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList>
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="academic">Academic</TabsTrigger>
-                    <TabsTrigger value="attendance">Attendance</TabsTrigger>
-                    <TabsTrigger value="leave">Leave Request</TabsTrigger>
+                    <TabsTrigger value="overview">{t.parent.childDetail.overview}</TabsTrigger>
+                    <TabsTrigger value="academic">{t.parent.childDetail.academic}</TabsTrigger>
+                    <TabsTrigger value="attendance">{t.parent.childDetail.attendance}</TabsTrigger>
+                    <TabsTrigger value="leave">{t.parent.childDetail.leave}</TabsTrigger>
                 </TabsList>
 
                 {/* OVERVIEW TAB */}
                 <TabsContent value="overview" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard
-                            title="Attendance"
+                            title={t.parent.childDetail.attendance}
                             value="92%"
                             icon={ClipboardCheck}
                             iconColor="text-success"
@@ -158,19 +160,19 @@ export function ParentChildDetail() {
                             changeType="positive"
                         />
                         <StatCard
-                            title="Avg. Grade"
+                            title={t.parent.childDetail.avgGrade}
                             value="A2"
                             icon={GraduationCap}
                             iconColor="text-primary"
                         />
                         <StatCard
-                            title="Assignments"
+                            title={t.parent.childDetail.academic}
                             value={`${student.assignments.filter(a => a.status === 'pending').length} Pending`}
                             icon={FileText}
                             iconColor="text-warning"
                         />
                         <StatCard
-                            title="Next Exam"
+                            title={t.parent.childDetail.nextExam}
                             value="Jan 15"
                             icon={Calendar}
                             iconColor="text-info"
@@ -179,7 +181,7 @@ export function ParentChildDetail() {
                     </div>
 
                     <div className="dashboard-card">
-                        <h3 className="font-semibold mb-6">Attendance Trend</h3>
+                        <h3 className="font-semibold mb-6">{t.parent.childDetail.attendanceTrend}</h3>
                         <BarChart data={student.attendance} color="hsl(var(--primary))" height={300} />
                     </div>
                 </TabsContent>
@@ -189,7 +191,7 @@ export function ParentChildDetail() {
                     <div className="dashboard-card">
                         <h3 className="font-semibold mb-4 flex items-center gap-2">
                             <GraduationCap className="w-5 h-5 text-primary" />
-                            Marks & Grades
+                            {t.parent.childDetail.marksAndGrades}
                         </h3>
                         <DataTable columns={marksColumns} data={student.marks} />
                     </div>
@@ -197,7 +199,7 @@ export function ParentChildDetail() {
                     <div className="dashboard-card">
                         <h3 className="font-semibold mb-4 flex items-center gap-2">
                             <BookOpen className="w-5 h-5 text-primary" />
-                            Assignments Status
+                            {t.parent.childDetail.assignmentsStatus}
                         </h3>
                         <DataTable columns={assignmentsColumns} data={student.assignments} />
                     </div>
@@ -207,21 +209,21 @@ export function ParentChildDetail() {
                 <TabsContent value="attendance">
                     <div className="dashboard-card">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-semibold">Detailed Attendance</h3>
-                            <Badge variant="success">Present Today</Badge>
+                            <h3 className="font-semibold">{t.parent.childDetail.detailedAttendance}</h3>
+                            <Badge variant="success">{t.parent.childDetail.presentToday}</Badge>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
                                 <div className="text-3xl font-bold text-primary mb-1">180</div>
-                                <div className="text-sm text-muted-foreground">Total Working Days</div>
+                                <div className="text-sm text-muted-foreground">{t.parent.childDetail.totalWorkingDays}</div>
                             </div>
                             <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
                                 <div className="text-3xl font-bold text-success mb-1">165</div>
-                                <div className="text-sm text-muted-foreground">Days Present</div>
+                                <div className="text-sm text-muted-foreground">{t.parent.childDetail.daysPresent}</div>
                             </div>
                             <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
                                 <div className="text-3xl font-bold text-warning mb-1">15</div>
-                                <div className="text-sm text-muted-foreground">Days Absent</div>
+                                <div className="text-sm text-muted-foreground">{t.parent.childDetail.daysAbsent}</div>
                             </div>
                         </div>
                     </div>
@@ -230,15 +232,15 @@ export function ParentChildDetail() {
                 {/* LEAVE TAB */}
                 <TabsContent value="leave">
                     <div className="dashboard-card max-w-2xl mx-auto">
-                        <h3 className="font-semibold mb-2">Submit Leave Request</h3>
+                        <h3 className="font-semibold mb-2">{t.parent.childDetail.submitLeaveRequest}</h3>
                         <p className="text-sm text-muted-foreground mb-6">
-                            Submitting a request does not guarantee approval. Please wait for confirmation.
+                            {t.parent.childDetail.leaveDisclaimer}
                         </p>
 
                         <form onSubmit={handleLeaveSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="from">From Date</Label>
+                                    <Label htmlFor="from">{t.parent.childDetail.fromDate}</Label>
                                     <Input
                                         id="from"
                                         type="date"
@@ -248,7 +250,7 @@ export function ParentChildDetail() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="to">To Date</Label>
+                                    <Label htmlFor="to">{t.parent.childDetail.toDate}</Label>
                                     <Input
                                         id="to"
                                         type="date"
@@ -260,11 +262,11 @@ export function ParentChildDetail() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="reason">Reason for Leave</Label>
+                                <Label htmlFor="reason">{t.parent.childDetail.reason}</Label>
                                 <textarea
                                     id="reason"
                                     className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    placeholder="Please provide the reason for absence..."
+                                    placeholder={t.parent.childDetail.reasonPlaceholder}
                                     required
                                     value={leaveRequest.reason}
                                     onChange={(e) => setLeaveRequest({ ...leaveRequest, reason: e.target.value })}
@@ -274,28 +276,28 @@ export function ParentChildDetail() {
                             <div className="pt-2">
                                 <Button type="submit" className="w-full md:w-auto flex items-center gap-2">
                                     <Send className="w-4 h-4" />
-                                    Submit Request
+                                    {t.parent.childDetail.submitRequest}
                                 </Button>
                             </div>
                         </form>
                     </div>
 
                     <div className="mt-8 dashboard-card">
-                        <h3 className="font-semibold mb-4">Past Leave Requests</h3>
+                        <h3 className="font-semibold mb-4">{t.parent.childDetail.pastLeaveRequests}</h3>
                         <div className="space-y-3">
                             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
                                 <div>
                                     <p className="font-medium text-sm">Sick Leave (2 days)</p>
                                     <p className="text-xs text-muted-foreground">Nov 12 - Nov 13, 2025</p>
                                 </div>
-                                <Badge variant="success">Approved</Badge>
+                                <Badge variant="success">{t.parent.leave.approved}</Badge>
                             </div>
                             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
                                 <div>
                                     <p className="font-medium text-sm">Family Function (1 day)</p>
                                     <p className="text-xs text-muted-foreground">Oct 05, 2025</p>
                                 </div>
-                                <Badge variant="success">Approved</Badge>
+                                <Badge variant="success">{t.parent.leave.approved}</Badge>
                             </div>
                         </div>
                     </div>

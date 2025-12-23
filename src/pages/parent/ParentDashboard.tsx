@@ -1,6 +1,7 @@
 import { ParentLayout } from '@/layouts/ParentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { useAuth } from '@/context/AuthContext';
+import { useTranslation } from '@/i18n/TranslationContext';
 import { ChildCard } from '@/components/cards/ChildCard';
 
 // Mock Data for Children
@@ -25,12 +26,13 @@ const myChildren = [
 
 export function ParentDashboard() {
     const { user } = useAuth();
+    const { t } = useTranslation();
 
     return (
         <ParentLayout>
             <PageHeader
-                title={`Welcome, ${user?.name}!`}
-                subtitle="Manage and monitor your children's academic progress"
+                title={`${t.common.welcome}, ${user?.name}!`}
+                subtitle={t.parent.dashboard.subtitle}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">

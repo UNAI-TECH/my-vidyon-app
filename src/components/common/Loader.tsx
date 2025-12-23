@@ -8,7 +8,7 @@ const Loader = ({ fullScreen = true }) => {
     return (
         <div className={containerClasses}>
             <div className="flex flex-col items-center gap-4 opacity-0" style={{ animation: 'fadeIn 0.3s ease-in forwards' }}>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap justify-center gap-2 max-w-[90vw]">
                     {/* Hidden SVG for gradient definition */}
                     <svg height={0} width={0} viewBox="0 0 64 64" className="absolute">
                         <defs>
@@ -20,7 +20,7 @@ const Loader = ({ fullScreen = true }) => {
                         </defs>
                     </svg>
 
-                    {/* Letter V */}
+                    {/* Letter M */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -35,16 +35,16 @@ const Loader = ({ fullScreen = true }) => {
                             strokeLinecap="round"
                             strokeWidth={8}
                             stroke="url(#loader-gradient)"
-                            d="M 10,4 L 32,60 L 54,4"
-                            strokeDasharray="140"
-                            strokeDashoffset="140"
+                            d="M 10,60 V 4 L 32,32 L 54,4 V 60"
+                            strokeDasharray="250"
+                            strokeDashoffset="250"
                             style={{
                                 animation: 'dash 2s ease-in-out infinite'
                             }}
                         />
                     </svg>
 
-                    {/* Letter I */}
+                    {/* Letter Y */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -59,40 +59,19 @@ const Loader = ({ fullScreen = true }) => {
                             strokeLinecap="round"
                             strokeWidth={8}
                             stroke="url(#loader-gradient)"
-                            d="M 32,4 V 60"
-                            strokeDasharray="60"
-                            strokeDashoffset="60"
+                            d="M 10,4 L 32,32 L 54,4 M 32,32 V 60"
+                            strokeDasharray="140"
+                            strokeDashoffset="140"
                             style={{
                                 animation: 'dash 2s ease-in-out infinite 0.1s'
                             }}
                         />
                     </svg>
 
-                    {/* Letter D */}
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
-                        className="inline-block opacity-0"
-                        style={{ animation: 'slideUp 0.3s ease-out 0.3s forwards' }}
-                    >
-                        <path
-                            strokeLinejoin="round"
-                            strokeLinecap="round"
-                            strokeWidth={8}
-                            stroke="url(#loader-gradient)"
-                            d="M 10,4 H 32 C 46,4 54,16 54,32 C 54,48 46,60 32,60 H 10 V 4"
-                            strokeDasharray="220"
-                            strokeDashoffset="220"
-                            style={{
-                                animation: 'dash 2s ease-in-out infinite 0.2s'
-                            }}
-                        />
-                    </svg>
+                    {/* Space */}
+                    <div className="w-4 md:w-8" />
 
-                    {/* Letter Y */}
+                    {/* Letter V */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -107,7 +86,7 @@ const Loader = ({ fullScreen = true }) => {
                             strokeLinecap="round"
                             strokeWidth={8}
                             stroke="url(#loader-gradient)"
-                            d="M 10,4 L 32,32 L 54,4 M 32,32 V 60"
+                            d="M 10,4 L 32,60 L 54,4"
                             strokeDasharray="140"
                             strokeDashoffset="140"
                             style={{
@@ -116,7 +95,7 @@ const Loader = ({ fullScreen = true }) => {
                         />
                     </svg>
 
-                    {/* Letter O */}
+                    {/* Letter I */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -126,24 +105,21 @@ const Loader = ({ fullScreen = true }) => {
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.5s forwards' }}
                     >
-                        <ellipse
+                        <path
                             strokeLinejoin="round"
                             strokeLinecap="round"
                             strokeWidth={8}
                             stroke="url(#loader-gradient)"
-                            cx="32"
-                            cy="32"
-                            rx="22"
-                            ry="28"
-                            strokeDasharray="180"
-                            strokeDashoffset="180"
+                            d="M 32,4 V 60"
+                            strokeDasharray="60"
+                            strokeDashoffset="60"
                             style={{
                                 animation: 'dash 2s ease-in-out infinite 0.4s'
                             }}
                         />
                     </svg>
 
-                    {/* Letter N */}
+                    {/* Letter D */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -158,11 +134,86 @@ const Loader = ({ fullScreen = true }) => {
                             strokeLinecap="round"
                             strokeWidth={8}
                             stroke="url(#loader-gradient)"
+                            d="M 10,4 H 32 C 46,4 54,16 54,32 C 54,48 46,60 32,60 H 10 V 4"
+                            strokeDasharray="220"
+                            strokeDashoffset="220"
+                            style={{
+                                animation: 'dash 2s ease-in-out infinite 0.5s'
+                            }}
+                        />
+                    </svg>
+
+                    {/* Letter Y */}
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 64 64"
+                        height={64}
+                        width={64}
+                        className="inline-block opacity-0"
+                        style={{ animation: 'slideUp 0.3s ease-out 0.7s forwards' }}
+                    >
+                        <path
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                            strokeWidth={8}
+                            stroke="url(#loader-gradient)"
+                            d="M 10,4 L 32,32 L 54,4 M 32,32 V 60"
+                            strokeDasharray="140"
+                            strokeDashoffset="140"
+                            style={{
+                                animation: 'dash 2s ease-in-out infinite 0.6s'
+                            }}
+                        />
+                    </svg>
+
+                    {/* Letter O */}
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 64 64"
+                        height={64}
+                        width={64}
+                        className="inline-block opacity-0"
+                        style={{ animation: 'slideUp 0.3s ease-out 0.8s forwards' }}
+                    >
+                        <ellipse
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                            strokeWidth={8}
+                            stroke="url(#loader-gradient)"
+                            cx="32"
+                            cy="32"
+                            rx="22"
+                            ry="28"
+                            strokeDasharray="180"
+                            strokeDashoffset="180"
+                            style={{
+                                animation: 'dash 2s ease-in-out infinite 0.7s'
+                            }}
+                        />
+                    </svg>
+
+                    {/* Letter N */}
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 64 64"
+                        height={64}
+                        width={64}
+                        className="inline-block opacity-0"
+                        style={{ animation: 'slideUp 0.3s ease-out 0.9s forwards' }}
+                    >
+                        <path
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                            strokeWidth={8}
+                            stroke="url(#loader-gradient)"
                             d="M 10,60 V 4 L 54,60 V 4"
                             strokeDasharray="250"
                             strokeDashoffset="250"
                             style={{
-                                animation: 'dash 2s ease-in-out infinite 0.5s'
+                                animation: 'dash 2s ease-in-out infinite 0.8s'
                             }}
                         />
                     </svg>

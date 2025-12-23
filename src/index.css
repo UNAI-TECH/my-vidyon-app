@@ -7,7 +7,7 @@
 @layer base {
   :root {
     /* Core palette - Professional ERP */
-    --background: 210 20% 98%;
+    --background: 46 66% 83%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -16,9 +16,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary - Red/Maroon */
-    --primary: 0 72% 36%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary - Coppery Yellow #FAB75A */
+    --primary: 36 92% 67%;
+    --primary-foreground: 222 47% 11%;
 
     /* Secondary - Slate gray */
     --secondary: 215 20% 95%;
@@ -27,28 +27,28 @@
     --muted: 215 20% 94%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 0 72% 95%;
-    --accent-foreground: 0 72% 36%;
+    --accent: 36 92% 95%;
+    --accent-foreground: 36 92% 67%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 0 72% 36%;
+    --ring: 36 92% 67%;
 
     --radius: 0.5rem;
 
-    /* Sidebar - Deep navy */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 0 65% 52%;
+    /* Sidebar - New Brand Color #FAB75A */
+    --sidebar-background: 36 92% 67%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 0 0% 0%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30% 18%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 30% 20%;
-    --sidebar-ring: 0 65% 52%;
-    --sidebar-muted: 215 16% 57%;
+    --sidebar-accent: 36 92% 60%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 350 85% 38%;
+    --sidebar-ring: 0 0% 0%;
+    --sidebar-muted: 0 0% 0%;
 
     /* Status colors */
     --success: 142 71% 45%;
@@ -58,18 +58,18 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    /* Role-specific accents */
-    --student: 0 72% 36%;
-    --faculty: 142 71% 45%;
-    --institution: 38 92% 50%;
-    --admin: 280 65% 60%;
+    /* Role-specific accents - All #FAB75A */
+    --student: 36 92% 67%;
+    --faculty: 36 92% 67%;
+    --institution: 36 92% 67%;
+    --admin: 36 92% 67%;
 
-    /* Chart colors */
-    --chart-1: 0 72% 36%;
-    --chart-2: 199 89% 48%;
-    --chart-3: 142 71% 45%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 280 65% 60%;
+    /* Chart colors - Yellow themes */
+    --chart-1: 36 92% 67%;
+    --chart-2: 0 60% 45%;
+    --chart-3: 0 50% 55%;
+    --chart-4: 0 80% 30%;
+    --chart-5: 0 45% 65%;
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
@@ -152,7 +152,7 @@
   }
 
   .nav-link-active {
-    @apply bg-sidebar-accent text-sidebar-foreground font-medium;
+    @apply bg-primary/20 text-primary font-bold shadow-sm;
   }
 
   .page-header {
@@ -245,5 +245,9 @@
       opacity: 1;
       transform: translateX(0);
     }
+  }
+
+  .bg-sidebar-gradient {
+    background: #FAB75A;
   }
 }

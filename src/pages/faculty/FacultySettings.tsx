@@ -1,29 +1,29 @@
-import { ParentLayout } from '@/layouts/ParentLayout';
+import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { User, Lock, Phone, Mail, LogOut } from 'lucide-react';
+import { User, Lock, Phone, Mail, LogOut, MapPin, Briefcase, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/TranslationContext';
 
-export function ParentSettings() {
+export function FacultySettings() {
     const { user, logout } = useAuth();
     const { t } = useTranslation();
 
     const handlePasswordChange = (e: React.FormEvent) => {
         e.preventDefault();
-        toast.success(t.parent.settings.passwordSuccess);
+        toast.success(t.parent.settings?.passwordSuccess || 'Password updated successfully');
     };
 
     if (!user) return null;
 
     return (
-        <ParentLayout>
+        <FacultyLayout>
             <PageHeader
-                title={t.parent.settings.title}
-                subtitle={t.parent.settings.subtitle}
+                title={t.parent.settings?.title || "Profile & Settings"}
+                subtitle={t.parent.settings?.subtitle || "Manage your faculty profile and teaching preferences"}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -41,33 +41,39 @@ export function ParentSettings() {
                         </div>
                         <div className="pt-12 pb-6 px-6 text-center">
                             <h3 className="font-bold text-xl mb-1">{user.name}</h3>
-                            <p className="text-muted-foreground text-sm mb-4">{t.parent.settings.parentAccount}</p>
-                            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-6">
-                                <Mail className="w-4 h-4" />
-                                {user.email}
+                            <p className="text-muted-foreground text-sm mb-4">Employee ID: FAC-2025-042</p>
+                            <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-6">
+                                <div className="flex items-center justify-center gap-2">
+                                    <Mail className="w-4 h-4" />
+                                    {user.email}
+                                </div>
+                                <div className="flex items-center justify-center gap-2">
+                                    <Briefcase className="w-4 h-4" />
+                                    Senior Professor
+                                </div>
                             </div>
                             <Button variant="outline" className="w-full text-destructive hover:bg-destructive/10 border-destructive/50" onClick={logout}>
                                 <LogOut className="w-4 h-4 mr-2" />
-                                {t.parent.settings.logout}
+                                {t.parent.settings?.logout || "Logout"}
                             </Button>
                         </div>
                     </div>
 
                     <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
-                        <h4 className="font-semibold mb-4">{t.parent.settings.linkedChildren}</h4>
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">AJ</div>
+                        <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">Department Info</h4>
+                        <div className="space-y-4">
+                            <div className="flex items-start gap-3">
+                                <GraduationCap className="w-4 h-4 text-primary mt-1" />
                                 <div>
-                                    <p className="font-medium text-sm">Alex Johnson</p>
-                                    <p className="text-xs text-muted-foreground">Class 10-A</p>
+                                    <p className="text-sm font-medium">Department</p>
+                                    <p className="text-xs text-muted-foreground">Information Technology</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">EJ</div>
+                            <div className="flex items-start gap-3">
+                                <Briefcase className="w-4 h-4 text-primary mt-1" />
                                 <div>
-                                    <p className="font-medium text-sm">Emily Johnson</p>
-                                    <p className="text-xs text-muted-foreground">Class 6-B</p>
+                                    <p className="text-sm font-medium">Office</p>
+                                    <p className="text-xs text-muted-foreground">Room 402, Block C</p>
                                 </div>
                             </div>
                         </div>
@@ -79,61 +85,64 @@ export function ParentSettings() {
                     <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                         <h3 className="font-semibold text-lg mb-6 flex items-center gap-2">
                             <User className="w-5 h-5 text-primary" />
-                            {t.parent.settings.personalInfo}
+                            {t.parent.settings?.personalInfo || "Personal Information"}
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>{t.parent.settings.fullName}</Label>
+                                <Label>{t.parent.settings?.fullName || "Full Name"}</Label>
                                 <Input value={user.name} disabled />
                             </div>
                             <div className="space-y-2">
-                                <Label>{t.parent.settings.email}</Label>
+                                <Label>{t.parent.settings?.email || "Email Address"}</Label>
                                 <Input value={user.email} disabled />
                             </div>
                             <div className="space-y-2">
-                                <Label>{t.parent.settings.phone}</Label>
+                                <Label>{t.parent.settings?.phone || "Phone Number"}</Label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input className="pl-10" defaultValue="+91 98765 43210" />
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>{t.parent.settings.address}</Label>
-                                <Input defaultValue="123, Green Park, New Delhi" />
+                            <div className="space-y-2 md:col-span-2">
+                                <Label>{t.parent.settings?.address || "Address"}</Label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                                    <Input className="pl-10" defaultValue="45, Faculty Quarters, Campus North" />
+                                </div>
                             </div>
                         </div>
-                        <div className="mt-4 flex justify-end">
-                            <Button>{t.parent.settings.saveChanges}</Button>
+                        <div className="mt-6 flex justify-end">
+                            <Button>{t.parent.settings?.saveChanges || "Save Changes"}</Button>
                         </div>
                     </div>
 
                     <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                         <h3 className="font-semibold text-lg mb-6 flex items-center gap-2">
                             <Lock className="w-5 h-5 text-primary" />
-                            {t.parent.settings.security}
+                            {t.parent.settings?.security || "Security"}
                         </h3>
                         <form onSubmit={handlePasswordChange} className="space-y-4">
                             <div className="space-y-2">
-                                <Label>{t.parent.settings.currentPassword}</Label>
+                                <Label>{t.parent.settings?.currentPassword || "Current Password"}</Label>
                                 <Input type="password" />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>{t.parent.settings.newPassword}</Label>
+                                    <Label>{t.parent.settings?.newPassword || "New Password"}</Label>
                                     <Input type="password" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>{t.parent.settings.confirmPassword}</Label>
+                                    <Label>{t.parent.settings?.confirmPassword || "Confirm New Password"}</Label>
                                     <Input type="password" />
                                 </div>
                             </div>
                             <div className="mt-4 flex justify-end">
-                                <Button type="submit">{t.parent.settings.updatePassword}</Button>
+                                <Button type="submit">{t.parent.settings?.updatePassword || "Update Password"}</Button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
-        </ParentLayout>
+        </FacultyLayout>
     );
 }

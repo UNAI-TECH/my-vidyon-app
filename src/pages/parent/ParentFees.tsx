@@ -4,6 +4,7 @@ import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 import { Download, CreditCard, Clock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/i18n/TranslationContext';
 
 const feesData = [
     {
@@ -48,15 +49,17 @@ const feesData = [
 ];
 
 export function ParentFees() {
+    const { t } = useTranslation();
+
     const handleDownload = (invoice: string) => {
-        toast.success(`Downloading receipt ${invoice}...`);
+        toast.success(`${t.parent.fees.downloadingReceipt} ${invoice}...`);
     };
 
     return (
         <ParentLayout>
             <PageHeader
-                title="Fees & Payments"
-                subtitle="Track payment status and download receipts"
+                title={t.parent.fees.title}
+                subtitle={t.parent.fees.subtitle}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -66,7 +69,7 @@ export function ParentFees() {
                             <CreditCard className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Total Due</p>
+                            <p className="text-sm text-muted-foreground">{t.parent.fees.totalDue}</p>
                             <h3 className="text-2xl font-bold">₹ 45,000</h3>
                         </div>
                     </div>
@@ -77,7 +80,7 @@ export function ParentFees() {
                             <CheckCircle className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Paid This Year</p>
+                            <p className="text-sm text-muted-foreground">{t.parent.fees.paidThisYear}</p>
                             <h3 className="text-2xl font-bold">₹ 88,000</h3>
                         </div>
                     </div>
@@ -86,18 +89,18 @@ export function ParentFees() {
 
             <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-border">
-                    <h3 className="font-semibold text-lg">Fee Records</h3>
+                    <h3 className="font-semibold text-lg">{t.parent.fees.feeRecords}</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
                             <tr className="bg-muted/50 border-b border-border">
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Student</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Fee Type</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Amount</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Due Date</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Status</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Action</th>
+                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.student}</th>
+                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.feeType}</th>
+                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.amount}</th>
+                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.dueDate}</th>
+                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.status}</th>
+                                <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.action}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -116,11 +119,11 @@ export function ParentFees() {
                                         {item.status === 'paid' ? (
                                             <Button variant="ghost" size="sm" onClick={() => handleDownload(item.invoice)}>
                                                 <Download className="w-4 h-4 mr-2" />
-                                                Receipt
+                                                {t.parent.fees.receipt}
                                             </Button>
                                         ) : (
                                             <Button size="sm" className="bg-primary text-white">
-                                                Pay Now
+                                                {t.parent.fees.payNow}
                                             </Button>
                                         )}
                                     </td>
