@@ -6,11 +6,11 @@ import { Badge } from '@/components/common/Badge';
 import { IndianRupee, Plus, Download, Edit } from 'lucide-react';
 
 const feeStructures = [
-    { id: '1', category: 'Tuition Fee - Engineering', frequency: 'Annual', amount: '₹12,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
-    { id: '2', category: 'Tuition Fee - Business', frequency: 'Annual', amount: '₹10,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
-    { id: '3', category: 'Library & Lab Fees', frequency: 'Semester', amount: '₹1,200', lastUpdated: 'Nov 15, 2025', status: 'active' },
-    { id: '4', category: 'Examination Fee', frequency: 'Per Exam', amount: '₹200', lastUpdated: 'Nov 10, 2025', status: 'active' },
-    { id: '5', category: 'Hostel & Mess', frequency: 'Annual', amount: '₹4,500', lastUpdated: 'Dec 05, 2025', status: 'active' },
+    { id: '1', category: 'Term 1 Fee - Class 10', frequency: 'Term', amount: '₹15,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
+    { id: '2', category: 'Term 1 Fee - Class 12', frequency: 'Term', amount: '₹18,000', lastUpdated: 'Dec 01, 2025', status: 'active' },
+    { id: '3', category: 'Annual Lab Fee - High School', frequency: 'Annual', amount: '₹2,500', lastUpdated: 'Nov 15, 2025', status: 'active' },
+    { id: '4', category: 'Transport Fee - Zone A', frequency: 'Monthly', amount: '₹1,500', lastUpdated: 'Nov 10, 2025', status: 'active' },
+    { id: '5', category: 'Sports & Activity Fee', frequency: 'Annual', amount: '₹3,000', lastUpdated: 'Dec 05, 2025', status: 'active' },
 ];
 
 export function InstitutionFees() {

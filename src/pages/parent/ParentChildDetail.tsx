@@ -137,20 +137,23 @@ export function ParentChildDetail() {
             <PageHeader
                 title={student.name}
                 subtitle={`${student.grade} • ${t.parent.childDetail.performanceOverview}`}
-                actions={<Button variant="outline" onClick={() => navigate('/parent')}>{t.parent.childDetail.backToDashboard}</Button>}
+                actions={<Button variant="outline" className="w-full sm:w-auto min-h-[44px]" onClick={() => navigate('/parent')}>{t.parent.childDetail.backToDashboard}</Button>}
             />
 
-            <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList>
-                    <TabsTrigger value="overview">{t.parent.childDetail.overview}</TabsTrigger>
-                    <TabsTrigger value="academic">{t.parent.childDetail.academic}</TabsTrigger>
-                    <TabsTrigger value="attendance">{t.parent.childDetail.attendance}</TabsTrigger>
-                    <TabsTrigger value="leave">{t.parent.childDetail.leave}</TabsTrigger>
-                </TabsList>
+            <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+                {/* Scrollable tabs on mobile */}
+                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+                    <TabsList className="w-max sm:w-auto">
+                        <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.overview}</TabsTrigger>
+                        <TabsTrigger value="academic" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.academic}</TabsTrigger>
+                        <TabsTrigger value="attendance" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.attendance}</TabsTrigger>
+                        <TabsTrigger value="leave" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.leave}</TabsTrigger>
+                    </TabsList>
+                </div>
 
                 {/* OVERVIEW TAB */}
-                <TabsContent value="overview" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+                    <div className="stats-grid">
                         <StatCard
                             title={t.parent.childDetail.attendance}
                             value="92%"
@@ -180,50 +183,52 @@ export function ParentChildDetail() {
                         />
                     </div>
 
-                    <div className="dashboard-card">
-                        <h3 className="font-semibold mb-6">{t.parent.childDetail.attendanceTrend}</h3>
-                        <BarChart data={student.attendance} color="hsl(var(--primary))" height={300} />
+                    <div className="dashboard-card p-4 sm:p-6">
+                        <h3 className="font-semibold mb-4 sm:mb-6 text-sm sm:text-base">{t.parent.childDetail.attendanceTrend}</h3>
+                        <div className="chart-container-responsive">
+                            <BarChart data={student.attendance} color="hsl(var(--primary))" height={250} />
+                        </div>
                     </div>
                 </TabsContent>
 
                 {/* ACADEMIC TAB */}
-                <TabsContent value="academic" className="space-y-6">
-                    <div className="dashboard-card">
-                        <h3 className="font-semibold mb-4 flex items-center gap-2">
-                            <GraduationCap className="w-5 h-5 text-primary" />
+                <TabsContent value="academic" className="space-y-4 sm:space-y-6">
+                    <div className="dashboard-card p-4 sm:p-6">
+                        <h3 className="font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+                            <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                             {t.parent.childDetail.marksAndGrades}
                         </h3>
-                        <DataTable columns={marksColumns} data={student.marks} />
+                        <DataTable columns={marksColumns} data={student.marks} mobileCardView />
                     </div>
 
-                    <div className="dashboard-card">
-                        <h3 className="font-semibold mb-4 flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-primary" />
+                    <div className="dashboard-card p-4 sm:p-6">
+                        <h3 className="font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+                            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                             {t.parent.childDetail.assignmentsStatus}
                         </h3>
-                        <DataTable columns={assignmentsColumns} data={student.assignments} />
+                        <DataTable columns={assignmentsColumns} data={student.assignments} mobileCardView />
                     </div>
                 </TabsContent>
 
                 {/* ATTENDANCE TAB */}
                 <TabsContent value="attendance">
-                    <div className="dashboard-card">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-semibold">{t.parent.childDetail.detailedAttendance}</h3>
+                    <div className="dashboard-card p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                            <h3 className="font-semibold text-sm sm:text-base">{t.parent.childDetail.detailedAttendance}</h3>
                             <Badge variant="success">{t.parent.childDetail.presentToday}</Badge>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
-                                <div className="text-3xl font-bold text-primary mb-1">180</div>
-                                <div className="text-sm text-muted-foreground">{t.parent.childDetail.totalWorkingDays}</div>
+                        <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
+                            <div className="p-3 sm:p-4 bg-muted/30 rounded-lg border border-border text-center">
+                                <div className="text-xl sm:text-3xl font-bold text-primary mb-0.5 sm:mb-1">180</div>
+                                <div className="text-[10px] sm:text-sm text-muted-foreground">{t.parent.childDetail.totalWorkingDays}</div>
                             </div>
-                            <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
-                                <div className="text-3xl font-bold text-success mb-1">165</div>
-                                <div className="text-sm text-muted-foreground">{t.parent.childDetail.daysPresent}</div>
+                            <div className="p-3 sm:p-4 bg-muted/30 rounded-lg border border-border text-center">
+                                <div className="text-xl sm:text-3xl font-bold text-success mb-0.5 sm:mb-1">165</div>
+                                <div className="text-[10px] sm:text-sm text-muted-foreground">{t.parent.childDetail.daysPresent}</div>
                             </div>
-                            <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
-                                <div className="text-3xl font-bold text-warning mb-1">15</div>
-                                <div className="text-sm text-muted-foreground">{t.parent.childDetail.daysAbsent}</div>
+                            <div className="p-3 sm:p-4 bg-muted/30 rounded-lg border border-border text-center">
+                                <div className="text-xl sm:text-3xl font-bold text-warning mb-0.5 sm:mb-1">15</div>
+                                <div className="text-[10px] sm:text-sm text-muted-foreground">{t.parent.childDetail.daysAbsent}</div>
                             </div>
                         </div>
                     </div>
@@ -231,14 +236,14 @@ export function ParentChildDetail() {
 
                 {/* LEAVE TAB */}
                 <TabsContent value="leave">
-                    <div className="dashboard-card max-w-2xl mx-auto">
-                        <h3 className="font-semibold mb-2">{t.parent.childDetail.submitLeaveRequest}</h3>
-                        <p className="text-sm text-muted-foreground mb-6">
+                    <div className="dashboard-card p-4 sm:p-6 max-w-2xl mx-auto">
+                        <h3 className="font-semibold mb-2 text-sm sm:text-base">{t.parent.childDetail.submitLeaveRequest}</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
                             {t.parent.childDetail.leaveDisclaimer}
                         </p>
 
-                        <form onSubmit={handleLeaveSubmit} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <form onSubmit={handleLeaveSubmit} className="space-y-3 sm:space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="from">{t.parent.childDetail.fromDate}</Label>
                                     <Input
@@ -274,7 +279,7 @@ export function ParentChildDetail() {
                             </div>
 
                             <div className="pt-2">
-                                <Button type="submit" className="w-full md:w-auto flex items-center gap-2">
+                                <Button type="submit" className="w-full sm:w-auto flex items-center gap-2 min-h-[44px]">
                                     <Send className="w-4 h-4" />
                                     {t.parent.childDetail.submitRequest}
                                 </Button>
@@ -282,20 +287,20 @@ export function ParentChildDetail() {
                         </form>
                     </div>
 
-                    <div className="mt-8 dashboard-card">
-                        <h3 className="font-semibold mb-4">{t.parent.childDetail.pastLeaveRequests}</h3>
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
-                                <div>
-                                    <p className="font-medium text-sm">Sick Leave (2 days)</p>
-                                    <p className="text-xs text-muted-foreground">Nov 12 - Nov 13, 2025</p>
+                    <div className="mt-6 sm:mt-8 dashboard-card p-4 sm:p-6">
+                        <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">{t.parent.childDetail.pastLeaveRequests}</h3>
+                        <div className="space-y-2 sm:space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border border-border">
+                                <div className="min-w-0">
+                                    <p className="font-medium text-xs sm:text-sm">Sick Leave (2 days)</p>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Nov 12 - Nov 13, 2025</p>
                                 </div>
                                 <Badge variant="success">{t.parent.leave.approved}</Badge>
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
-                                <div>
-                                    <p className="font-medium text-sm">Family Function (1 day)</p>
-                                    <p className="text-xs text-muted-foreground">Oct 05, 2025</p>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border border-border">
+                                <div className="min-w-0">
+                                    <p className="font-medium text-xs sm:text-sm">Family Function (1 day)</p>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Oct 05, 2025</p>
                                 </div>
                                 <Badge variant="success">{t.parent.leave.approved}</Badge>
                             </div>

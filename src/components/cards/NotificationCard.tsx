@@ -32,31 +32,31 @@ export function NotificationCard({
 
   return (
     <div className={cn(
-      'flex items-start gap-4 p-4 rounded-lg border border-border transition-colors',
+      'flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-border transition-colors touch-active',
       read ? 'bg-background' : 'bg-accent/30'
     )}>
-      <div className={cn('p-2 rounded-lg', config.bg)}>
+      <div className={cn('p-2 rounded-lg flex-shrink-0', config.bg)}>
         <Icon className={cn('w-4 h-4', config.color)} />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h4 className={cn('font-medium', read ? 'text-muted-foreground' : 'text-foreground')}>
+          <h4 className={cn('font-medium text-sm sm:text-base pr-6', read ? 'text-muted-foreground' : 'text-foreground')}>
             {title}
           </h4>
           {onDismiss && (
             <button
               onClick={onDismiss}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute top-3 right-3 sm:relative sm:top-0 sm:right-0 p-1 -mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-target-sm"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
-        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{message}</p>
-        <span className="text-xs text-muted-foreground mt-2 block">{time}</span>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{message}</p>
+        <span className="text-[10px] sm:text-xs text-muted-foreground mt-2 block">{time}</span>
       </div>
-      
+
       {!read && (
         <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
       )}

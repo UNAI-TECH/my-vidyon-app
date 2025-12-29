@@ -151,7 +151,7 @@ export function AdminDashboard() {
         subtitle="Manage institutions and monitor platform-wide activities"
         actions={
           <Button
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 w-full sm:w-auto justify-center min-h-[44px]"
             onClick={handleAddInstitution}
           >
             <Plus className="w-4 h-4" />
@@ -161,7 +161,7 @@ export function AdminDashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="stats-grid mb-6 sm:mb-8">
         <StatCard
           title="Total Institutions"
           value={institutions.length}
@@ -195,46 +195,50 @@ export function AdminDashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 dashboard-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold">System Load (Last 24 Hours)</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <h3 className="font-semibold text-sm sm:text-base">System Load (Last 24 Hours)</h3>
           </div>
-          <AreaChart data={systemMetrics} color="hsl(var(--admin))" height={280} />
+          <div className="chart-container-responsive">
+            <AreaChart data={systemMetrics} color="hsl(var(--admin))" height={250} />
+          </div>
         </div>
-        <div className="dashboard-card">
-          <h3 className="font-semibold mb-4">User Distribution</h3>
-          <DonutChart data={userDistribution} height={280} />
+        <div className="dashboard-card p-4 sm:p-6">
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">User Distribution</h3>
+          <div className="chart-container-responsive">
+            <DonutChart data={userDistribution} height={250} />
+          </div>
         </div>
       </div>
 
       {/* Alerts */}
-      <div className="dashboard-card mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="w-5 h-5 text-warning" />
-          <h3 className="font-semibold">System Alerts</h3>
+      <div className="dashboard-card p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-warning" />
+          <h3 className="font-semibold text-sm sm:text-base">System Alerts</h3>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {systemAlerts.map((alert) => (
-            <div key={alert.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${alert.severity === 'warning' ? 'bg-warning' : 'bg-info'}`} />
-                <span className="text-sm">{alert.message}</span>
+            <div key={alert.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 sm:mt-0 ${alert.severity === 'warning' ? 'bg-warning' : 'bg-info'}`} />
+                <span className="text-xs sm:text-sm">{alert.message}</span>
               </div>
-              <span className="text-xs text-muted-foreground">{alert.time}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0 ml-4 sm:ml-0">{alert.time}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Institutions Grid */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">Managed Institutions</h3>
-          <a href="/admin/institutions" className="text-sm text-primary hover:underline">View All</a>
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="font-semibold text-base sm:text-lg">Managed Institutions</h3>
+          <a href="/admin/institutions" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
           {institutions.map((institution) => (
             <InstitutionCard
               key={institution.code}
@@ -246,12 +250,12 @@ export function AdminDashboard() {
       </div>
 
       {/* Activity Log */}
-      <div className="dashboard-card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Recent Activity</h3>
-          <a href="/admin/monitoring" className="text-sm text-primary hover:underline">View Logs</a>
+      <div className="dashboard-card p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="font-semibold text-sm sm:text-base">Recent Activity</h3>
+          <a href="/admin/monitoring" className="text-xs sm:text-sm text-primary hover:underline">View Logs</a>
         </div>
-        <DataTable columns={activityColumns} data={recentActivities} />
+        <DataTable columns={activityColumns} data={recentActivities} mobileCardView />
       </div>
     </AdminLayout>
   );

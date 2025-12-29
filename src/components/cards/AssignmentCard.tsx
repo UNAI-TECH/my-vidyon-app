@@ -29,33 +29,33 @@ export function AssignmentCard({
   const StatusIcon = config.icon;
 
   return (
-    <div className="dashboard-card group cursor-pointer">
-      <div className="flex items-start gap-4">
-        <div className="p-2.5 rounded-lg bg-accent">
-          <FileText className="w-5 h-5 text-primary" />
+    <div className="dashboard-card group cursor-pointer p-3 sm:p-4 hover:bg-accent/5 transition-colors touch-active">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="p-2 sm:p-2.5 rounded-lg bg-accent flex-shrink-0">
+          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
         </div>
-        
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
+          <div className="flex flex-col-reverse xs:flex-row xs:items-start justify-between gap-2 mb-1">
+            <h3 className="font-medium text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
               {title}
             </h3>
-            <Badge variant={config.variant} className="flex-shrink-0">
+            <Badge variant={config.variant} className="self-start flex-shrink-0">
               <StatusIcon className="w-3 h-3 mr-1" />
               {config.label}
             </Badge>
           </div>
-          
-          <p className="text-sm text-muted-foreground mb-2">{course}</p>
-          
+
+          <p className="text-xs sm:text-sm text-muted-foreground mb-2 truncate">{course}</p>
+
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Due: {dueDate}</span>
             </div>
-            
+
             {status === 'graded' && grade && maxGrade && (
-              <span className="text-sm font-medium text-success">
+              <span className="text-xs sm:text-sm font-medium text-success bg-success/10 px-2 py-0.5 rounded-md">
                 {grade}/{maxGrade}
               </span>
             )}

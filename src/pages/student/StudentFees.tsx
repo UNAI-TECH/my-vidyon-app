@@ -33,73 +33,98 @@ export function StudentFees() {
             />
 
             {/* Fee Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="dashboard-card">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground mb-1">Total Fees</p>
-                            <h3 className="text-2xl font-bold">₹{totalFees.toLocaleString()}</h3>
+            <div className="stats-grid mb-6 sm:mb-8">
+                <div className="dashboard-card p-4 sm:p-6">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Fees</p>
+                            <h3 className="text-xl sm:text-2xl font-bold truncate">₹{totalFees.toLocaleString()}</h3>
                         </div>
-                        <CreditCard className="w-10 h-10 text-muted-foreground" />
+                        <CreditCard className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground flex-shrink-0" />
                     </div>
                 </div>
 
-                <div className="dashboard-card">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground mb-1">Paid</p>
-                            <h3 className="text-2xl font-bold text-success">₹{paidFees.toLocaleString()}</h3>
+                <div className="dashboard-card p-4 sm:p-6">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Paid</p>
+                            <h3 className="text-xl sm:text-2xl font-bold text-success truncate">₹{paidFees.toLocaleString()}</h3>
                         </div>
-                        <CheckCircle className="w-10 h-10 text-success" />
+                        <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-success flex-shrink-0" />
                     </div>
                 </div>
 
-                <div className="dashboard-card">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground mb-1">Pending</p>
-                            <h3 className="text-2xl font-bold text-warning">₹{pendingFees.toLocaleString()}</h3>
+                <div className="dashboard-card p-4 sm:p-6">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Pending</p>
+                            <h3 className="text-xl sm:text-2xl font-bold text-warning truncate">₹{pendingFees.toLocaleString()}</h3>
                         </div>
-                        <AlertCircle className="w-10 h-10 text-warning" />
+                        <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-warning flex-shrink-0" />
                     </div>
                 </div>
             </div>
 
             {/* Fee Structure */}
-            <div className="dashboard-card mb-8">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-semibold">Fee Structure - Fall 2025</h3>
-                    <Button className="btn-primary flex items-center gap-2">
+            <div className="dashboard-card p-4 sm:p-6 mb-6 sm:mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                    <h3 className="font-semibold text-sm sm:text-base">Fee Structure - Fall 2025</h3>
+                    <Button className="btn-primary flex items-center gap-2 w-full sm:w-auto justify-center min-h-[44px]">
                         <CreditCard className="w-4 h-4" />
                         Pay Now
                     </Button>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden space-y-3">
+                    {feeStructure.map((fee, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+                            <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm truncate">{fee.item}</p>
+                                <p className="text-lg font-semibold mt-1">₹{fee.amount.toLocaleString()}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2 ml-3">
+                                <Badge variant={fee.status === 'paid' ? 'success' : 'warning'}>
+                                    {fee.status === 'paid' ? 'Paid' : 'Pending'}
+                                </Badge>
+                                <Button variant="outline" size="sm" className="min-h-[36px]">
+                                    {fee.status === 'pending' ? 'Pay' : 'Receipt'}
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="flex justify-between items-center p-3 bg-primary/5 rounded-lg border-2 border-primary/20">
+                        <span className="font-semibold">Total</span>
+                        <span className="font-bold text-lg">₹{totalFees.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <table className="w-full min-w-[500px]">
                         <thead>
                             <tr className="border-b border-border">
-                                <th className="table-header text-left">Fee Item</th>
-                                <th className="table-header text-right">Amount</th>
-                                <th className="table-header text-center">Status</th>
-                                <th className="table-header text-center">Action</th>
+                                <th className="table-header text-left py-2 sm:py-3 px-2 sm:px-4">Fee Item</th>
+                                <th className="table-header text-right py-2 sm:py-3 px-2 sm:px-4">Amount</th>
+                                <th className="table-header text-center py-2 sm:py-3 px-2 sm:px-4">Status</th>
+                                <th className="table-header text-center py-2 sm:py-3 px-2 sm:px-4">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {feeStructure.map((fee, index) => (
                                 <tr key={index} className="border-b border-border hover:bg-muted/50">
-                                    <td className="table-cell font-medium">{fee.item}</td>
-                                    <td className="table-cell text-right">₹{fee.amount.toLocaleString()}</td>
-                                    <td className="table-cell text-center">
+                                    <td className="table-cell font-medium py-3 sm:py-4 px-2 sm:px-4">{fee.item}</td>
+                                    <td className="table-cell text-right py-3 sm:py-4 px-2 sm:px-4">₹{fee.amount.toLocaleString()}</td>
+                                    <td className="table-cell text-center py-3 sm:py-4 px-2 sm:px-4">
                                         <Badge variant={fee.status === 'paid' ? 'success' : 'warning'}>
                                             {fee.status === 'paid' ? 'Paid' : 'Pending'}
                                         </Badge>
                                     </td>
-                                    <td className="table-cell text-center">
+                                    <td className="table-cell text-center py-3 sm:py-4 px-2 sm:px-4">
                                         {fee.status === 'pending' ? (
-                                            <Button variant="outline" size="sm">Pay</Button>
+                                            <Button variant="outline" size="sm" className="min-h-[36px]">Pay</Button>
                                         ) : (
-                                            <Button variant="outline" size="sm" className="flex items-center gap-1 mx-auto">
+                                            <Button variant="outline" size="sm" className="flex items-center gap-1 mx-auto min-h-[36px]">
                                                 <Download className="w-3 h-3" />
                                                 Receipt
                                             </Button>
@@ -110,8 +135,8 @@ export function StudentFees() {
                         </tbody>
                         <tfoot>
                             <tr className="border-t-2 border-border font-semibold">
-                                <td className="table-cell">Total</td>
-                                <td className="table-cell text-right">₹{totalFees.toLocaleString()}</td>
+                                <td className="table-cell py-3 sm:py-4 px-2 sm:px-4">Total</td>
+                                <td className="table-cell text-right py-3 sm:py-4 px-2 sm:px-4">₹{totalFees.toLocaleString()}</td>
                                 <td colSpan={2}></td>
                             </tr>
                         </tfoot>
@@ -120,23 +145,23 @@ export function StudentFees() {
             </div>
 
             {/* Payment History */}
-            <div className="dashboard-card">
-                <div className="flex items-center gap-2 mb-6">
-                    <Calendar className="w-5 h-5 text-primary" />
-                    <h3 className="font-semibold">Payment History</h3>
+            <div className="dashboard-card p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-4 sm:mb-6">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                    <h3 className="font-semibold text-sm sm:text-base">Payment History</h3>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                     {paymentHistory.map((payment, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                            <div>
-                                <p className="font-medium">{payment.description}</p>
-                                <p className="text-sm text-muted-foreground">
+                        <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
+                            <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{payment.description}</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
                                     {payment.date} • {payment.method}
                                 </p>
                             </div>
-                            <div className="text-right">
-                                <p className="font-semibold">₹{payment.amount.toLocaleString()}</p>
+                            <div className="text-right flex-shrink-0">
+                                <p className="font-semibold text-sm sm:text-base">₹{payment.amount.toLocaleString()}</p>
                                 <Badge variant="success" className="mt-1">Completed</Badge>
                             </div>
                         </div>

@@ -79,7 +79,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </button>
 
         <div className="flex items-center gap-2">
-          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className="h-14 w-auto" />
+          <img src="/my-vidyon-logo.png" alt="Vidyon Logo" className="h-14 w-auto" />
           <span className="font-semibold text-sm hidden sm:block">{ROLE_LABELS[user.role]} Portal</span>
         </div>
 
@@ -106,7 +106,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         'hidden lg:block'
       )}>
         <div className="h-32 flex items-center gap-3 px-4 border-b border-sidebar-border bg-sidebar-gradient overflow-hidden">
-          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className={cn("h-24 w-auto transition-all", !sidebarOpen && "mx-auto")} />
+          <img src="/my-vidyon-logo.png" alt="Vidyon Logo" className={cn("h-24 w-auto transition-all", !sidebarOpen && "mx-auto")} />
           {sidebarOpen && (
             <div className="animate-fade-in truncate">
               <span className="text-[10px] text-black font-bold uppercase tracking-wider block opacity-70 leading-none">
@@ -280,7 +280,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </header>
 
         {/* Page Content */}
-        <div className="p-6 lg:p-8">
+        <div className="p-4 sm:p-6 lg:p-8 safe-area-inset">
           {children}
         </div>
       </main>

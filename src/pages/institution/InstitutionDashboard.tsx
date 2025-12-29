@@ -92,7 +92,7 @@ export function InstitutionDashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="stats-grid mb-6 sm:mb-8">
         <StatCard
           title="Total Students"
           value="2,450"
@@ -126,52 +126,56 @@ export function InstitutionDashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 dashboard-card">
-          <h3 className="font-semibold mb-4">Enrollment Trend</h3>
-          <AreaChart data={enrollmentTrend} color="hsl(var(--institution))" height={280} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
+        <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Enrollment Trend</h3>
+          <div className="chart-container-responsive">
+            <AreaChart data={enrollmentTrend} color="hsl(var(--institution))" height={250} />
+          </div>
         </div>
-        <div className="dashboard-card pt-6">
-          <h3 className="font-semibold mb-6">Class Enrollment Distribution</h3>
-          <div className="h-[300px]">
-            <DonutChart data={classDistribution} />
+        <div className="dashboard-card p-4 sm:p-6">
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Class Enrollment Distribution</h3>
+          <div className="h-[250px]">
+            <DonutChart data={classDistribution} height={250} />
           </div>
         </div>
       </div>
 
       {/* Tables Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6 sm:mb-8">
         {/* Recent Admissions */}
-        <div className="dashboard-card">
-          <div className="flex items-center justify-between mb-4">
+        <div className="dashboard-card p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Recent Admissions</h3>
+              <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              <h3 className="font-semibold text-sm sm:text-base">Recent Admissions</h3>
             </div>
-            <a href="/institution/admissions" className="text-sm text-primary hover:underline">View All</a>
+            <a href="/institution/admissions" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
           </div>
-          <DataTable columns={admissionColumns} data={recentAdmissions} />
+          <DataTable columns={admissionColumns} data={recentAdmissions} mobileCardView />
         </div>
 
         {/* Fee Collection */}
-        <div className="dashboard-card">
-          <div className="flex items-center justify-between mb-4">
+        <div className="dashboard-card p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-success" />
-              <h3 className="font-semibold">Fee Collection (in M)</h3>
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+              <h3 className="font-semibold text-sm sm:text-base">Fee Collection (in ₹M)</h3>
             </div>
           </div>
-          <BarChart data={feeCollection} color="hsl(var(--success))" height={280} />
+          <div className="chart-container-responsive">
+            <BarChart data={feeCollection} color="hsl(var(--success))" height={250} />
+          </div>
         </div>
       </div>
 
       {/* Department Performance */}
-      <div className="dashboard-card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Department Performance</h3>
-          <a href="/institution/departments" className="text-sm text-primary hover:underline">Manage Departments</a>
+      <div className="dashboard-card p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="font-semibold text-sm sm:text-base">Department Performance</h3>
+          <a href="/institution/departments" className="text-xs sm:text-sm text-primary hover:underline">Manage Departments</a>
         </div>
-        <DataTable columns={deptColumns} data={topPerformingDepts} />
+        <DataTable columns={deptColumns} data={topPerformingDepts} mobileCardView />
       </div>
     </InstitutionLayout>
   );

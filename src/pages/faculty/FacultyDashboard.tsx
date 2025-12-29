@@ -88,7 +88,7 @@ export function FacultyDashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="stats-grid mb-6 sm:mb-8">
         <StatCard
           title="Total Students"
           value={125}
@@ -121,29 +121,31 @@ export function FacultyDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Performance Chart */}
-        <div className="xl:col-span-2 dashboard-card">
-          <h3 className="font-semibold mb-4">Class Performance Overview</h3>
-          <BarChart data={classPerformance} color="hsl(var(--faculty))" height={280} />
+        <div className="xl:col-span-2 dashboard-card p-4 sm:p-6">
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Class Performance Overview</h3>
+          <div className="chart-container-responsive">
+            <BarChart data={classPerformance} color="hsl(var(--faculty))" height={250} />
+          </div>
         </div>
 
         {/* Today's Schedule */}
-        <div className="dashboard-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold">Today's Schedule</h3>
+        <div className="dashboard-card p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <h3 className="font-semibold text-sm sm:text-base">Today's Schedule</h3>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {todaySchedule.map((item, index) => (
-              <div key={index} className="flex gap-4 p-3 bg-muted/50 rounded-lg">
-                <div className="text-sm font-medium text-primary w-20 flex-shrink-0">
+              <div key={index} className="flex gap-3 sm:gap-4 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                <div className="text-xs sm:text-sm font-medium text-primary w-16 sm:w-20 flex-shrink-0">
                   {item.time}
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{item.course}</p>
-                  <p className="text-xs text-muted-foreground">{item.topic}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{item.room}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-xs sm:text-sm truncate">{item.course}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.topic}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">{item.room}</p>
                 </div>
               </div>
             ))}
@@ -152,12 +154,12 @@ export function FacultyDashboard() {
       </div>
 
       {/* My Courses */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">My Courses</h3>
-          <a href="/faculty/courses" className="text-sm text-primary hover:underline">Manage Courses</a>
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="font-semibold text-sm sm:text-base">My Courses</h3>
+          <a href="/faculty/courses" className="text-xs sm:text-sm text-primary hover:underline">Manage Courses</a>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {assignedSubjects.map((course) => (
             <CourseCard key={course.code} {...course} />
           ))}
@@ -165,12 +167,12 @@ export function FacultyDashboard() {
       </div>
 
       {/* Pending Submissions */}
-      <div className="dashboard-card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Pending Submissions</h3>
-          <a href="/faculty/assignments" className="text-sm text-primary hover:underline">View All</a>
+      <div className="dashboard-card p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="font-semibold text-sm sm:text-base">Pending Submissions</h3>
+          <a href="/faculty/assignments" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
         </div>
-        <DataTable columns={submissionColumns} data={pendingSubmissions} />
+        <DataTable columns={submissionColumns} data={pendingSubmissions} mobileCardView />
       </div>
     </FacultyLayout>
   );

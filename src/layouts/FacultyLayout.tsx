@@ -25,7 +25,7 @@ export function FacultyLayout({ children }: { children: ReactNode }) {
     { label: t.nav.assignments, href: '/faculty/assignments', icon: FileText },
     { label: t.nav.marks, href: '/faculty/marks', icon: GraduationCap },
     { label: t.nav.exams, href: '/faculty/exams', icon: FileQuestion },
-    { label: t.nav.analytics, href: '/faculty/analytics', icon: BarChart3 },
+
     { label: t.nav.students, href: '/faculty/students', icon: Users },
     { label: t.nav.announcements, href: '/faculty/announcements', icon: Megaphone },
     { label: 'Upload Certificate', href: '/faculty/upload-certificate', icon: FileText },

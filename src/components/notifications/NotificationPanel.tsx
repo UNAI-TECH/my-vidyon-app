@@ -107,7 +107,7 @@ const TypeIcon = ({ type }: { type: NotificationType }) => {
 export function NotificationPanel({ className }: { className?: string }) {
     return (
         <div className={cn("flex flex-col h-full", className)}>
-            <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                     <Bell className="w-5 h-5" />
                     Notifications
@@ -118,12 +118,12 @@ export function NotificationPanel({ className }: { className?: string }) {
             </div>
 
             <ScrollArea className="flex-1">
-                <div className="p-4 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                     {mockNotifications.map((notification) => (
                         <Card
                             key={notification.id}
                             className={cn(
-                                "p-4 transition-all hover:bg-muted/50 cursor-pointer border-l-4",
+                                "p-3 sm:p-4 transition-all hover:bg-muted/50 cursor-pointer border-l-4 touch-active",
                                 notification.read ? "border-l-transparent" : "border-l-primary bg-primary/5"
                             )}
                         >

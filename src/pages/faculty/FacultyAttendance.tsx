@@ -4,7 +4,18 @@ import { DataTable } from '@/components/common/DataTable';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { CheckCircle, XCircle, Search, Filter } from 'lucide-react';
+import { CheckCircle, XCircle, Search, Filter, UserPlus } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const students = [
     { id: 1, rollNo: '101', name: 'John Smith', class: 'Grade 10-A', lastAttendance: '92%', status: 'present' },
@@ -16,11 +27,34 @@ const students = [
 
 export function FacultyAttendance() {
     const [attendance, setAttendance] = useState(students);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [newStudent, setNewStudent] = useState({
+        name: '',
+        rollNo: '',
+        class: 'Grade 10-A'
+    });
 
     const toggleStatus = (id: number) => {
         setAttendance(prev => prev.map(s =>
             s.id === id ? { ...s, status: s.status === 'present' ? 'absent' : 'present' } : s
         ));
+    };
+
+    const handleAddStudent = () => {
+        if (!newStudent.name || !newStudent.rollNo) return;
+
+        const student = {
+            id: Math.max(...attendance.map(s => s.id), 0) + 1,
+            rollNo: newStudent.rollNo,
+            name: newStudent.name,
+            class: newStudent.class,
+            lastAttendance: '0%', // Default for new student
+            status: 'present' // Default to present
+        };
+
+        setAttendance([...attendance, student]);
+        setIsDialogOpen(false);
+        setNewStudent({ name: '', rollNo: '', class: 'Grade 10-A' });
     };
 
     const columns = [
@@ -31,7 +65,7 @@ export function FacultyAttendance() {
         {
             key: 'status',
             header: 'Status',
-            render: (item: typeof students[0]) => (
+            render: (item: any) => (
                 <Badge variant={item.status === 'present' ? 'success' : 'destructive'}>
                     {item.status.toUpperCase()}
                 </Badge>
@@ -40,7 +74,7 @@ export function FacultyAttendance() {
         {
             key: 'actions',
             header: 'Actions',
-            render: (item: typeof students[0]) => (
+            render: (item: any) => (
                 <div className="flex items-center gap-2">
                     <Button
                         size="sm"
@@ -70,6 +104,64 @@ export function FacultyAttendance() {
                 subtitle="Mark and manage student attendance for your subjects"
                 actions={
                     <div className="flex items-center gap-2">
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-success hover:bg-success/90 text-white flex items-center gap-2">
+                                    <UserPlus className="w-4 h-4" />
+                                    Add Student
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Add New Student</DialogTitle>
+                                    <DialogDescription>
+                                        Enter student details to add them to the attendance list.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="name" className="text-right">
+                                            Name
+                                        </Label>
+                                        <Input
+                                            id="name"
+                                            value={newStudent.name}
+                                            onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="John Doe"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="rollNo" className="text-right">
+                                            Roll No
+                                        </Label>
+                                        <Input
+                                            id="rollNo"
+                                            value={newStudent.rollNo}
+                                            onChange={(e) => setNewStudent({ ...newStudent, rollNo: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="106"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="class" className="text-right">
+                                            Class
+                                        </Label>
+                                        <Input
+                                            id="class"
+                                            value={newStudent.class}
+                                            onChange={(e) => setNewStudent({ ...newStudent, class: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="Grade 10-A"
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="submit" onClick={handleAddStudent}>Add Student</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+
                         <Button variant="outline" className="flex items-center gap-2">
                             <Filter className="w-4 h-4" />
                             Filter Class
@@ -85,10 +177,10 @@ export function FacultyAttendance() {
                 <div className="flex items-center gap-4 mb-6">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
+                        <Input
                             type="text"
                             placeholder="Search students..."
-                            className="input-field pl-10"
+                            className="pl-10"
                         />
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

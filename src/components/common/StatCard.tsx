@@ -21,19 +21,22 @@ export function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <div className={cn('stat-card animate-fade-in', className)}>
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-semibold">{value}</p>
+    <div className={cn('stat-card animate-fade-in p-4 sm:p-6', className)}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
+          <p className="text-xl sm:text-2xl font-semibold">{value}</p>
         </div>
-        <div className={cn('p-2.5 rounded-lg bg-primary/10', iconColor.replace('text-', 'bg-').replace('primary', 'primary/10'))}>
-          <Icon className={cn('w-5 h-5', iconColor)} />
+        <div className={cn(
+          'p-2 sm:p-2.5 rounded-lg flex-shrink-0',
+          iconColor.replace('text-', 'bg-').replace('primary', 'primary/10')
+        )}>
+          <Icon className={cn('w-4 h-4 sm:w-5 sm:h-5', iconColor)} />
         </div>
       </div>
       {change && (
         <p className={cn(
-          'text-sm mt-2',
+          'text-xs sm:text-sm mt-2 truncate',
           changeType === 'positive' && 'text-success',
           changeType === 'negative' && 'text-destructive',
           changeType === 'neutral' && 'text-muted-foreground'
@@ -44,3 +47,4 @@ export function StatCard({
     </div>
   );
 }
+

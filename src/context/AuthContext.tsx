@@ -15,7 +15,7 @@ const DEMO_USERS: Record<UserRole, User> = {
   student: {
     id: 'STU001',
     email: 'student@demo.edu',
-    name: 'Alex Johnson',
+    name: 'Gopal Krishna',
     role: 'student',
     institutionId: 'INST001',
     departmentId: 'DEPT001',
@@ -23,7 +23,7 @@ const DEMO_USERS: Record<UserRole, User> = {
   faculty: {
     id: 'FAC001',
     email: 'faculty@demo.edu',
-    name: 'Dr. Sarah Williams',
+    name: 'Pradeep Kumar',
     role: 'faculty',
     institutionId: 'INST001',
     departmentId: 'DEPT001',
@@ -44,7 +44,7 @@ const DEMO_USERS: Record<UserRole, User> = {
   parent: {
     id: 'PAR001',
     email: 'PARENT@gmail.com',
-    name: 'Mr. Robert Johnson',
+    name: 'Mr. Krishnamoorthy',
     role: 'parent',
   },
 };

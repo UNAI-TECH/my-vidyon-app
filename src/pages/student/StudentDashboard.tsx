@@ -60,8 +60,8 @@ export function StudentDashboard() {
         subtitle={t.dashboard.overview}
       />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Stats Grid - 2 columns on mobile, 4 on desktop */}
+      <div className="stats-grid mb-6 sm:mb-8">
         <StatCard
           title="Subjects"
           value={3}
@@ -95,26 +95,30 @@ export function StudentDashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 dashboard-card">
-          <h3 className="font-semibold mb-4">Weekly Attendance</h3>
-          <AreaChart data={attendanceData} color="hsl(var(--student))" height={250} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Weekly Attendance</h3>
+          <div className="chart-container-responsive">
+            <AreaChart data={attendanceData} color="hsl(var(--student))" height={220} />
+          </div>
         </div>
-        <div className="dashboard-card">
-          <h3 className="font-semibold mb-4">Grade Distribution</h3>
-          <DonutChart data={gradeDistribution} height={250} />
+        <div className="dashboard-card p-4 sm:p-6">
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Grade Distribution</h3>
+          <div className="chart-container-responsive">
+            <DonutChart data={gradeDistribution} height={220} />
+          </div>
         </div>
       </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {/* Content Grid - Stack on mobile */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
         {/* Courses */}
-        <div className="mb-8 xl:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">My Subjects</h3>
-            <a href="/student/courses" className="text-sm text-primary hover:underline">View All</a>
+        <div className="mb-6 sm:mb-8 xl:col-span-2 xl:mb-0">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h3 className="font-semibold text-sm sm:text-base">My Subjects</h3>
+            <a href="/student/courses" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4">
             {enrolledSubjects.map((course) => (
               <CourseCard key={course.code} {...course} />
             ))}
@@ -122,32 +126,32 @@ export function StudentDashboard() {
         </div>
 
         {/* Right Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Upcoming Events */}
-          <div className="dashboard-card">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Upcoming Events</h3>
+          <div className="dashboard-card p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              <h3 className="font-semibold text-sm sm:text-base">Upcoming Events</h3>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-primary">22</div>
-                  <div className="text-xs text-muted-foreground">Dec</div>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                <div className="text-center flex-shrink-0">
+                  <div className="text-base sm:text-lg font-bold text-primary">22</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">Dec</div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">Unit Test: Mathematics</p>
-                  <p className="text-xs text-muted-foreground">Class 10-A • 10:00 AM</p>
+                <div className="min-w-0">
+                  <p className="font-medium text-xs sm:text-sm truncate">Unit Test: Mathematics</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Class 10-A • 10:00 AM</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-primary">25</div>
-                  <div className="text-xs text-muted-foreground">Dec</div>
+              <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                <div className="text-center flex-shrink-0">
+                  <div className="text-base sm:text-lg font-bold text-primary">25</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">Dec</div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">Science Fair</p>
-                  <p className="text-xs text-muted-foreground">Auditorium • 2:00 PM</p>
+                <div className="min-w-0">
+                  <p className="font-medium text-xs sm:text-sm truncate">Science Fair</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Auditorium • 2:00 PM</p>
                 </div>
               </div>
             </div>
@@ -155,11 +159,11 @@ export function StudentDashboard() {
 
           {/* Assignments */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Assignments</h3>
-              <a href="/student/assignments" className="text-sm text-primary hover:underline">View All</a>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="font-semibold text-sm sm:text-base">Assignments</h3>
+              <a href="/student/assignments" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {upcomingAssignments.map((assignment, index) => (
                 <AssignmentCard key={index} {...assignment} />
               ))}
@@ -169,12 +173,12 @@ export function StudentDashboard() {
       </div>
 
       {/* Notifications */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Recent Notifications</h3>
-          <a href="/student/notifications" className="text-sm text-primary hover:underline">View All</a>
+      <div className="mt-6 sm:mt-8">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="font-semibold text-sm sm:text-base">Recent Notifications</h3>
+          <a href="/student/notifications" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {notifications.map((notification, index) => (
             <NotificationCard key={index} {...notification} />
           ))}

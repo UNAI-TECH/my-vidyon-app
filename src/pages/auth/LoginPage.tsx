@@ -69,7 +69,7 @@ export function LoginPage() {
           {/* Mobile Logo Only */}
           <div className="lg:hidden text-center mb-10">
             <img
-              src="/vidyon-logo-v2.png"
+              src="/my-vidyon-logo.png"
               alt="Vidyon Logo"
               className="w-[360px] max-w-full mx-auto object-contain"
               style={{ aspectRatio: '2.5/1' }}
@@ -183,7 +183,7 @@ export function LoginPage() {
         <div className="relative z-10 w-full max-w-lg text-center text-black">
           <div className="mb-12 animate-slide-up">
             <img
-              src="/vidyon-logo-v2.png"
+              src="/my-vidyon-logo.png"
               alt="Vidyon Logo"
               className="w-[520px] min-w-[520px] mx-auto drop-shadow-2xl object-contain"
               style={{ aspectRatio: '2.5/1' }}

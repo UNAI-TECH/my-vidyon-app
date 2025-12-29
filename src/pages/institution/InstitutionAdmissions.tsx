@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
-import { UserPlus, Search, Filter, Download } from 'lucide-react';
+import { UserPlus, Search, Filter, Download, FileSpreadsheet } from 'lucide-react';
 
 const applications = [
     { id: '1', name: 'Alice Thompson', program: 'Grade 10', date: 'Dec 18, 2025', status: 'pending', score: '92%' },
@@ -58,11 +58,32 @@ export function InstitutionAdmissions() {
                                 className="input-field pl-10 w-64"
                             />
                         </div>
+                        <Button
+                            variant="default" // Changed to default green/primary to make it distinct as requested
+                            className="flex items-center gap-2 bg-success hover:bg-success/90 text-white"
+                            onClick={() => document.getElementById('excel-upload')?.click()}
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Import Excel File
+                        </Button>
+                        <input
+                            type="file"
+                            id="excel-upload"
+                            accept=".xlsx, .xls"
+                            className="hidden"
+                            onChange={(e) => {
+                                if (e.target.files?.length) {
+                                    // Simulated import logic
+                                    alert(`Importing details from ${e.target.files[0].name}...`);
+                                    // In a real app, parse the excel here
+                                }
+                            }}
+                        />
                         <Button variant="outline" className="flex items-center gap-2">
                             <Download className="w-4 h-4" />
                             Export
                         </Button>
-                        <Button className="flex items-center gap-2">
+                        <Button className="flex items-center gap-2" variant="secondary">
                             <Filter className="w-4 h-4" />
                             Filters
                         </Button>
