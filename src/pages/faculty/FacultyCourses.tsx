@@ -27,7 +27,9 @@ export function FacultyCourses() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...subjects, ...(JSON.parse(localStorage.getItem('facultySubjects') || '[]') as typeof subjects)].map((course) => (
-                    <CourseCard key={course.code} {...course} />
+                    <div key={course.code} onClick={() => window.location.href = `/faculty/courses/${encodeURIComponent(course.title)}`} className="cursor-pointer transition-transform hover:scale-[1.01]">
+                        <CourseCard {...course} />
+                    </div>
                 ))}
             </div>
         </FacultyLayout>

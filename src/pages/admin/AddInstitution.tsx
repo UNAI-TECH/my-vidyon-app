@@ -285,6 +285,14 @@ export function AddInstitution() {
                             </div>
 
                             <div className="space-y-2">
+                                <Label htmlFor="schoolCode">School Code *</Label>
+                                <Input
+                                    id="schoolCode"
+                                    placeholder="Enter unique school code (e.g. SCH001)"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
                                 <Label htmlFor="institutionType">Institution Type *</Label>
                                 <Select value={institutionType} onValueChange={setInstitutionType}>
                                     <SelectTrigger>

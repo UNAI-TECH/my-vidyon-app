@@ -6,31 +6,30 @@ import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import {
+  Building2,
   Users,
-  GraduationCap,
-  IndianRupee,
-  CalendarCheck,
-  UserPlus,
-  FileText,
-  CheckCircle,
-  Bell
+  CreditCard,
+  Activity,
+  Plus,
+  ArrowRight,
+  Shield,
+  BarChart3
 } from 'lucide-react';
 
 const recentActivities = [
-  { id: 1, action: 'Fee Payment Received', user: 'Rohan Kumar (Class 10-A)', time: '10 mins ago', type: 'success', amount: '₹15,000' },
-  { id: 2, action: 'New Admission Inquiry', user: 'Priya Sharma (Grade 1)', time: '1 hour ago', type: 'info', amount: '-' },
-  { id: 3, action: 'Staff Leave Request', user: 'Mrs. Geetha (Math)', time: '2 hours ago', type: 'warning', amount: '2 Days' },
-  { id: 4, action: 'Notice Circulated', user: 'Principal Office', time: '4 hours ago', type: 'default', amount: 'Exam Schedule' },
-  { id: 5, action: 'Attendance Alert', user: 'Class 9-B', time: '5 hours ago', type: 'destructive', amount: '85% Present' },
+  { id: 1, action: 'New Institution Registered', target: 'St. Mary\'s High School', time: '2 hours ago', type: 'success' },
+  { id: 2, action: 'Subscription Payment', target: 'Green Valley School', time: '5 hours ago', type: 'info' },
+  { id: 3, action: 'User Report', target: 'Access Issue (Ticket #402)', time: '1 day ago', type: 'warning' },
+  { id: 4, action: 'Institution Audit', target: 'Complience Check', time: '2 days ago', type: 'default' },
+  { id: 5, action: 'License Expiring', target: 'City Public School', time: '3 days ago', type: 'destructive' },
 ];
 
 export function AdminDashboard() {
   const navigate = useNavigate();
 
   const activityColumns = [
-    { key: 'action', header: 'Activity / Event' },
-    { key: 'user', header: 'Related To' },
-    { key: 'amount', header: 'Details/Amount' },
+    { key: 'action', header: 'Activity' },
+    { key: 'target', header: 'Entity' },
     { key: 'time', header: 'Time' },
     {
       key: 'type',
@@ -51,11 +50,12 @@ export function AdminDashboard() {
   return (
     <AdminLayout>
       <PageHeader
-        title="Admin Dashboard"
-        subtitle="School Overview and Administration Control Center"
+        title="Super Admin Dashboard"
+        subtitle="Overview of all institutions and platform metrics"
         actions={
-          <Button className="btn-primary flex items-center gap-2">
-            <span>Academic Year 2025-26</span>
+          <Button className="btn-primary flex items-center gap-2" onClick={() => navigate('/admin/institutions')}>
+            <Building2 className="w-4 h-4" />
+            <span>Manage Institutions</span>
           </Button>
         }
       />
@@ -63,35 +63,35 @@ export function AdminDashboard() {
       {/* Stats Grid */}
       <div className="stats-grid mb-6 sm:mb-8">
         <StatCard
-          title="Total Students"
-          value="2,450"
-          icon={GraduationCap}
+          title="Total Institutions"
+          value="24"
+          icon={Building2}
           iconColor="text-primary"
-          change="+12 New Admissions"
+          change="+2 this month"
           changeType="positive"
         />
         <StatCard
-          title="Teaching Staff"
-          value="125"
+          title="Active Users"
+          value="15.2k"
           icon={Users}
           iconColor="text-success"
-          change="98% Present Today"
+          change="+1.2k new users"
           changeType="positive"
         />
         <StatCard
-          title="Fee Collection (Today)"
-          value="₹1.2L"
-          icon={IndianRupee}
+          title="Platform Revenue"
+          value="₹45.2L"
+          icon={CreditCard}
           iconColor="text-warning"
-          change="₹45.5L Pending (Term 1)"
-          changeType="neutral"
+          change="+12% from last month"
+          changeType="positive"
         />
         <StatCard
-          title="Avg. Attendance"
-          value="94.5%"
-          icon={CalendarCheck}
+          title="System Health"
+          value="99.9%"
+          icon={Activity}
           iconColor="text-info"
-          change="Class 10 Lead: 99%"
+          change="All systems operational"
           changeType="positive"
         />
       </div>
@@ -99,21 +99,21 @@ export function AdminDashboard() {
       {/* Quick Actions Grid */}
       <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all" onClick={() => navigate('/admin/add-institution')}>
+          <Building2 className="w-8 h-8 text-primary" />
+          <span>Add Institution</span>
+        </Button>
         <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all" onClick={() => navigate('/admin/users')}>
-          <UserPlus className="w-8 h-8 text-primary" />
-          <span>Admit Student</span>
-        </Button>
-        <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all" onClick={() => navigate('/admin/communication')}>
-          <Bell className="w-8 h-8 text-warning" />
-          <span>Send Notice</span>
-        </Button>
-        <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all" onClick={() => navigate('/admin/approvals')}>
-          <CheckCircle className="w-8 h-8 text-success" />
-          <span>Approve Leaves</span>
+          <Users className="w-8 h-8 text-success" />
+          <span>User Management</span>
         </Button>
         <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all" onClick={() => navigate('/admin/reports')}>
-          <FileText className="w-8 h-8 text-info" />
-          <span>View Reports</span>
+          <BarChart3 className="w-8 h-8 text-info" />
+          <span>View Analytics</span>
+        </Button>
+        <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all" onClick={() => navigate('/admin/settings')}>
+          <Shield className="w-8 h-8 text-warning" />
+          <span>Platform Settings</span>
         </Button>
       </div>
 
@@ -121,45 +121,38 @@ export function AdminDashboard() {
         {/* Recent Activity */}
         <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-base">Recent Activities</h3>
+            <h3 className="font-semibold text-base">Recent Platform Activity</h3>
             <Button variant="ghost" size="sm" className="text-primary">View All Logs</Button>
           </div>
           <DataTable columns={activityColumns} data={recentActivities} mobileCardView />
         </div>
 
-        {/* Pending Approvals / Notice Board */}
+        {/* System Alerts / Pending Approvals */}
         <div className="space-y-6">
           <div className="dashboard-card p-4 sm:p-6">
-            <h3 className="font-semibold text-base mb-4">Pending Approvals</h3>
+            <h3 className="font-semibold text-base mb-4">Pending Requests</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
                 <div>
-                  <p className="font-medium text-sm">Leave Request</p>
-                  <p className="text-xs text-muted-foreground">Mr. Rajesh (Physics)</p>
+                  <p className="font-medium text-sm">New Institution Request</p>
+                  <p className="text-xs text-muted-foreground">Sunrise Academy</p>
                 </div>
                 <Button size="sm" variant="outline">Review</Button>
               </div>
               <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
                 <div>
-                  <p className="font-medium text-sm">Marks Entry</p>
-                  <p className="text-xs text-muted-foreground">Class 10-A (Maths)</p>
+                  <p className="font-medium text-sm">License Renewal</p>
+                  <p className="text-xs text-muted-foreground">RPC School (Expires in 2d)</p>
                 </div>
-                <Button size="sm" variant="outline">Review</Button>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="font-medium text-sm">Bonafide Request</p>
-                  <p className="text-xs text-muted-foreground">Suresh (Class 12)</p>
-                </div>
-                <Button size="sm" variant="outline">Sign</Button>
+                <Button size="sm" variant="outline">Action</Button>
               </div>
             </div>
           </div>
 
           <div className="dashboard-card p-4 sm:p-6 bg-primary/5 border-primary/20">
-            <h3 className="font-semibold text-base mb-2 text-primary">Admin Note</h3>
+            <h3 className="font-semibold text-base mb-2 text-primary">System Note</h3>
             <p className="text-sm text-muted-foreground">
-              Next Board Meeting scheduled for Friday, 10:00 AM. Prepare term analysis reports.
+              Scheduled maintenance on Saturday 12:00 AM - 02:00 AM IST. Please notify all institution admins.
             </p>
           </div>
         </div>

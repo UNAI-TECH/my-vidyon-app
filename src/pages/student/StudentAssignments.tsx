@@ -4,6 +4,20 @@ import { AssignmentCard } from '@/components/cards/AssignmentCard';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { useState } from 'react';
+import { Upload } from 'lucide-react';
 
 const assignments = {
   pending: [
@@ -27,6 +41,22 @@ const assignments = {
 
 export function StudentAssignments() {
   const { t } = useTranslation();
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
+
+  const handleSubmitClick = (assignment: any) => {
+    setSelectedAssignment(assignment);
+    setIsSubmitOpen(true);
+  };
+
+  const handleSubmitConfirm = () => {
+    toast.success("Assignment submitted successfully!");
+    setIsSubmitOpen(false);
+  };
+
+  const handleRequestExtension = () => {
+    toast.success("Extension request sent to staff!");
+  };
 
   return (
     <StudentLayout>
@@ -37,10 +67,10 @@ export function StudentAssignments() {
 
       <Tabs defaultValue="pending" className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="pending">Pending ({assignments.pending.length})</TabsTrigger>
-          <TabsTrigger value="submitted">Submitted ({assignments.submitted.length})</TabsTrigger>
-          <TabsTrigger value="graded">Graded ({assignments.graded.length})</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue ({assignments.overdue.length})</TabsTrigger>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="submitted">Submitted</TabsTrigger>
+          <TabsTrigger value="graded">Graded</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
@@ -49,9 +79,30 @@ export function StudentAssignments() {
               <div className="flex-1">
                 <AssignmentCard {...assignment} />
               </div>
-              <Button className="btn-primary">{t.common.submit}</Button>
+              <Button className="btn-primary" onClick={() => handleSubmitClick(assignment)}>{t.common.submit}</Button>
             </div>
           ))}
+
+          <Dialog open={isSubmitOpen} onOpenChange={setIsSubmitOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Submit Assignment</DialogTitle>
+                <DialogDescription>
+                  Upload your work for {selectedAssignment?.title}.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid w-full max-w-sm items-center gap-1.5">
+                  <Label htmlFor="file">Assignment File (Photo/PDF)</Label>
+                  <Input id="file" type="file" accept="image/*,.pdf" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsSubmitOpen(false)}>Cancel</Button>
+                <Button onClick={handleSubmitConfirm}>Submit</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="submitted" className="space-y-4">
@@ -72,7 +123,7 @@ export function StudentAssignments() {
               <div className="flex-1">
                 <AssignmentCard {...assignment} />
               </div>
-              <Button variant="outline">Request Extension</Button>
+              <Button variant="outline" onClick={handleRequestExtension}>Request Extension</Button>
             </div>
           ))}
         </TabsContent>

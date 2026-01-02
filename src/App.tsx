@@ -51,6 +51,7 @@ import { FacultyUploadCertificate } from "./pages/faculty/FacultyUploadCertifica
 import { CreateSubject } from "./pages/faculty/CreateSubject";
 import { UploadExamPaper } from "./pages/faculty/UploadExamPaper";
 import { FacultySettings } from "./pages/faculty/FacultySettings";
+import { FacultyCourseDetails } from "./pages/faculty/FacultyCourseDetails";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -81,6 +82,9 @@ import { AdminStructure } from "./pages/admin/AdminStructure";
 import { AdminSubjects } from "./pages/admin/AdminSubjects";
 import { AdminApprovals } from "./pages/admin/AdminApprovals";
 import { AdminAnnouncements } from "./pages/admin/AdminAnnouncements";
+import { AdminInstitutions } from "./pages/admin/AdminInstitutions";
+import { AddInstitution } from "./pages/admin/AddInstitution";
+import { InstitutionDetail } from "./pages/admin/InstitutionDetail";
 
 const queryClient = new QueryClient();
 
@@ -119,7 +123,7 @@ const App = () => {
                 <Route path="/student/assignments" element={<ProtectedRoute allowedRoles={['student']}><StudentAssignments /></ProtectedRoute>} />
                 <Route path="/student/grades" element={<ProtectedRoute allowedRoles={['student']}><StudentGrades /></ProtectedRoute>} />
                 <Route path="/student/materials" element={<ProtectedRoute allowedRoles={['student']}><StudentMaterials /></ProtectedRoute>} />
-                <Route path="/student/fees" element={<ProtectedRoute allowedRoles={['student']}><StudentFees /></ProtectedRoute>} />
+                {/* <Route path="/student/fees" element={<ProtectedRoute allowedRoles={['student']}><StudentFees /></ProtectedRoute>} /> */}
                 <Route path="/student/certificates" element={<ProtectedRoute allowedRoles={['student']}><StudentCertificates /></ProtectedRoute>} />
                 <Route path="/student/notifications" element={<ProtectedRoute allowedRoles={['student']}><StudentNotifications /></ProtectedRoute>} />
                 <Route path="/student/ai-tutor" element={<ProtectedRoute allowedRoles={['student']}><StudentAITutor /></ProtectedRoute>} />
@@ -128,6 +132,7 @@ const App = () => {
                 {/* Faculty Routes */}
                 <Route path="/faculty" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDashboard /></ProtectedRoute>} />
                 <Route path="/faculty/courses" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyCourses /></ProtectedRoute>} />
+                <Route path="/faculty/courses/:courseId" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyCourseDetails /></ProtectedRoute>} />
                 <Route path="/faculty/attendance" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAttendance /></ProtectedRoute>} />
                 <Route path="/faculty/assignments" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAssignments /></ProtectedRoute>} />
                 <Route path="/faculty/assignments/create" element={<ProtectedRoute allowedRoles={['faculty']}><CreateAssignment /></ProtectedRoute>} />
@@ -163,18 +168,20 @@ const App = () => {
                 <Route path="/parent/settings" element={<ProtectedRoute allowedRoles={['parent']}><ParentSettings /></ProtectedRoute>} />
 
                 {/* Admin Routes */}
-                {/* School Admin Routes - Replaced previous SaaS Admin Routes */}
+                {/* SaaS Admin Routes */}
                 <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-                <Route path="/admin/structure" element={<ProtectedRoute allowedRoles={['admin']}><AdminStructure /></ProtectedRoute>} />
+                <Route path="/admin/institutions" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutions /></ProtectedRoute>} />
+                <Route path="/admin/add-institution" element={<ProtectedRoute allowedRoles={['admin']}><AddInstitution /></ProtectedRoute>} />
+                <Route path="/admin/institutions/:institutionId" element={<ProtectedRoute allowedRoles={['admin']}><InstitutionDetail /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
-
-                {/* School Admin Routes - Activated */}
-                <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['admin']}><AdminSubjects /></ProtectedRoute>} />
-                <Route path="/admin/approvals" element={<ProtectedRoute allowedRoles={['admin']}><AdminApprovals /></ProtectedRoute>} />
-                <Route path="/admin/communication" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
                 <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutionAnalytics /></ProtectedRoute>} />
-
                 <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
+
+                {/* School Admin Routes - Deactivated */}
+                {/* <Route path="/admin/structure" element={<ProtectedRoute allowedRoles={['admin']}><AdminStructure /></ProtectedRoute>} /> */}
+                {/* <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['admin']}><AdminSubjects /></ProtectedRoute>} /> */}
+                {/* <Route path="/admin/approvals" element={<ProtectedRoute allowedRoles={['admin']}><AdminApprovals /></ProtectedRoute>} /> */}
+                {/* <Route path="/admin/communication" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} /> */}
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
