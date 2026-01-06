@@ -11,6 +11,7 @@ interface InstitutionCardProps {
   faculty: number;
   status: 'active' | 'pending' | 'suspended';
   type: string;
+  logoUrl?: string; // Add logoUrl support
   classes?: number;
   sections?: number;
   onClick?: () => void;
@@ -30,6 +31,7 @@ export function InstitutionCard({
   type,
   classes,
   sections,
+  logoUrl,
   onClick,
   onEdit,
   onUsers,
@@ -61,8 +63,12 @@ export function InstitutionCard({
       onClick={onClick}
     >
       <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
-        <div className="p-2 sm:p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex-shrink-0">
-          <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+        <div className="p-2 sm:p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex-shrink-0 overflow-hidden w-12 h-12 flex items-center justify-center">
+          {logoUrl ? (
+            <img src={logoUrl} alt={name} className="w-full h-full object-contain" />
+          ) : (
+            <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+          )}
         </div>
         <Badge variant={statusVariant[status]}>
           {status.charAt(0).toUpperCase() + status.slice(1)}

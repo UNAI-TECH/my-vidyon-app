@@ -1,88 +1,63 @@
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { InstitutionCard } from '@/components/cards/InstitutionCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-const institutions = {
-  active: [
-    {
-      id: 'RPC001',
-      name: 'Revoor Padmanabha Chattys Matriculation School',
-      code: 'RPC001',
-      location: 'Chennai, Tamil Nadu',
-      students: 1250,
-      faculty: 68,
-      status: 'active' as const,
-      type: 'Matriculation',
-      classes: 15,
-      sections: 28
-    },
-    {
-      id: 'TBM001',
-      name: 'The Beloved Matriculation School',
-      code: 'TBM001',
-      location: 'Coimbatore, Tamil Nadu',
-      students: 980,
-      faculty: 52,
-      status: 'active' as const,
-      type: 'Matriculation',
-      classes: 12,
-      sections: 24
-    },
-    {
-      id: 'VMS001',
-      name: 'Venkateshwara Matriculation School',
-      code: 'VMS001',
-      location: 'Madurai, Tamil Nadu',
-      students: 1450,
-      faculty: 75,
-      status: 'active' as const,
-      type: 'Matriculation',
-      classes: 15,
-      sections: 30
-    },
-    {
-      id: 'MMS001',
-      name: 'Mercury Matriculation School',
-      code: 'MMS001',
-      location: 'Trichy, Tamil Nadu',
-      students: 820,
-      faculty: 45,
-      status: 'active' as const,
-      type: 'Matriculation',
-      classes: 12,
-      sections: 20
-    },
-    {
-      id: 'RKM001',
-      name: 'Radha Krishna Matriculation School',
-      code: 'RKM001',
-      location: 'Salem, Tamil Nadu',
-      students: 1120,
-      faculty: 58,
-      status: 'active' as const,
-      type: 'Matriculation',
-      classes: 14,
-      sections: 26
-    },
-  ],
-  pending: [],
-  suspended: [],
-};
+import { supabase } from '@/lib/supabase';
 
 export function AdminInstitutions() {
   const navigate = useNavigate();
+  const [institutions, setInstitutions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchInstitutions();
+
+    // Subscribe to changes
+    const channel = supabase
+      .channel('public:institutions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'institutions' }, () => {
+        fetchInstitutions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  async function fetchInstitutions() {
+    try {
+      const { data, error } = await supabase
+        .from('institutions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInstitutions(data || []);
+    } catch (error) {
+      console.error('Error fetching institutions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const handleAddInstitution = () => {
     navigate('/admin/add-institution');
   };
 
-  const handleViewInstitution = (institutionId: string) => {
-    navigate(`/admin/institutions/${institutionId}`);
-  };
+  const filteredInstitutions = institutions.filter(inst =>
+    inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    inst.institution_id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const activeInstitutions = filteredInstitutions.filter(i => i.status === 'active');
+  const pendingInstitutions = filteredInstitutions.filter(i => i.status === 'pending');
+  const suspendedInstitutions = filteredInstitutions.filter(i => i.status === 'inactive' || i.status === 'suspended');
 
   return (
     <AdminLayout>
@@ -107,6 +82,8 @@ export function AdminInstitutions() {
             type="text"
             placeholder="Search institutions..."
             className="input-field pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Button variant="outline" className="flex items-center gap-2">
@@ -115,37 +92,78 @@ export function AdminInstitutions() {
         </Button>
       </div>
 
-      <Tabs defaultValue="active" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="active">Active ({institutions.active.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({institutions.pending.length})</TabsTrigger>
-          <TabsTrigger value="suspended">Suspended ({institutions.suspended.length})</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground font-medium">Loading institutions data...</p>
+        </div>
+      ) : (
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="active">Active ({activeInstitutions.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({pendingInstitutions.length})</TabsTrigger>
+            <TabsTrigger value="suspended">Suspended ({suspendedInstitutions.length})</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="active">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {institutions.active.map((institution) => (
-              <InstitutionCard
-                key={institution.code}
-                {...institution}
-                onClick={() => handleViewInstitution(institution.id)}
-              />
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="active">
+            {activeInstitutions.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
+                <p className="text-muted-foreground">No active institutions found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {activeInstitutions.map((inst) => (
+                  <InstitutionCard
+                    key={inst.id}
+                    id={inst.id}
+                    name={inst.name}
+                    code={inst.institution_id}
+                    location={`${inst.city || ''}${inst.state ? `, ${inst.state}` : ''}`}
+                    students={0} // These could be fetched with a count query
+                    faculty={0}
+                    status={inst.status as any}
+                    type={inst.type}
+                    logoUrl={inst.logo_url}
+                    onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        <TabsContent value="pending">
-          <div className="text-center py-12 border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground">No pending institutions</p>
-          </div>
-        </TabsContent>
+          <TabsContent value="pending">
+            <div className="text-center py-12 border-2 border-dashed rounded-lg">
+              <p className="text-muted-foreground">No pending institutions</p>
+            </div>
+          </TabsContent>
 
-        <TabsContent value="suspended">
-          <div className="text-center py-12 border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground">No suspended institutions</p>
-          </div>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="suspended">
+            {suspendedInstitutions.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <p className="text-muted-foreground">No suspended institutions</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {suspendedInstitutions.map((inst) => (
+                  <InstitutionCard
+                    key={inst.id}
+                    id={inst.id}
+                    name={inst.name}
+                    code={inst.institution_id}
+                    location={`${inst.city}, ${inst.state}`}
+                    students={0}
+                    faculty={0}
+                    status={inst.status as any}
+                    type={inst.type}
+                    logoUrl={inst.logo_url}
+                    onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
     </AdminLayout>
   );
 }

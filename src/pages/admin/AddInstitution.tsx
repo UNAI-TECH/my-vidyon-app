@@ -8,6 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { BulkUploadService } from '@/services/BulkUploadService';
+import { toast } from 'sonner';
 import {
     Building2,
     MapPin,
@@ -23,6 +26,7 @@ import {
     Plus,
     Trash2,
     X,
+    Loader2
 } from 'lucide-react';
 
 interface Group {
@@ -66,8 +70,10 @@ interface Staff {
     role: string;
     subjectAssigned: string;
     classAssigned: string;
+    sectionAssigned: string; // Added section
     email: string;
     phone: string;
+    dob: string; // Added for password generation
 }
 
 const steps = [
@@ -96,7 +102,11 @@ export function AddInstitution() {
     const [contactPhone, setContactPhone] = useState('');
     const [academicYear, setAcademicYear] = useState('');
     const [logo, setLogo] = useState<File | null>(null);
+    const [logoUrl, setLogoUrl] = useState('');
     const [institutionStatus, setInstitutionStatus] = useState('active');
+    const [institutionId, setInstitutionId] = useState(''); // School Code
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Step 2: Groups & Classes
     const [groups, setGroups] = useState<Group[]>([]);
@@ -230,8 +240,10 @@ export function AddInstitution() {
             role: '',
             subjectAssigned: '',
             classAssigned: '',
+            sectionAssigned: '',
             email: '',
             phone: '',
+            dob: '',
         }]);
     };
 
@@ -255,10 +267,194 @@ export function AddInstitution() {
         }
     };
 
-    const handleSubmit = () => {
-        console.log('Submitting institution data...');
-        // Here you would submit all the data
-        navigate('/admin');
+    const handleSubmit = async () => {
+        setIsSubmitting(true);
+        const loadingToast = toast.loading('Step 1/6: Uploading logo...');
+
+        try {
+            // 1. Upload Logo if exists
+            let uploadedLogoUrl = '';
+            if (logo) {
+                const fileExt = logo.name.split('.').pop();
+                const fileName = `${institutionId}-${Math.random()}.${fileExt}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('logos')
+                    .upload(fileName, logo);
+
+                if (uploadError) throw new Error(`Logo upload failed: ${uploadError.message}`);
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('logos')
+                    .getPublicUrl(fileName);
+
+                uploadedLogoUrl = publicUrl;
+            }
+
+            // 2. Create Institution
+            toast.loading('Step 2/6: Creating institution...', { id: loadingToast });
+            const { error: instError } = await supabase
+                .from('institutions')
+                .insert([{
+                    institution_id: institutionId,
+                    name: institutionName,
+                    type: institutionType,
+                    address: address,
+                    city: city,
+                    state: state,
+                    email: contactEmail,
+                    phone: contactPhone,
+                    academic_year: academicYear,
+                    logo_url: uploadedLogoUrl,
+                    status: institutionStatus
+                }]);
+
+            if (instError) throw new Error(`Failed to create institution: ${instError.message}`);
+
+            // 3. Create Groups & Classes
+            toast.loading('Step 3/6: Creating groups and classes...', { id: loadingToast });
+            for (const group of groups) {
+                const { data: groupData, error: groupError } = await supabase
+                    .from('groups')
+                    .insert([{ name: group.name, institution_id: institutionId }])
+                    .select()
+                    .single();
+
+                if (groupError) throw groupError;
+
+                if (group.classes.length > 0) {
+                    const classesToInsert = group.classes.map(c => ({
+                        group_id: groupData.id,
+                        name: c.name,
+                        sections: c.sections
+                    }));
+                    const { error: classError } = await supabase.from('classes').insert(classesToInsert);
+                    if (classError) throw classError;
+                }
+            }
+
+            // 4. Create Subjects
+            toast.loading('Step 4/6: Adding subjects...', { id: loadingToast });
+            if (subjects.length > 0) {
+                const subjectsToInsert = subjects.map(s => ({
+                    institution_id: institutionId,
+                    name: s.name,
+                    code: s.code,
+                    class_name: s.className,
+                    group_name: s.group
+                }));
+                const { error: subError } = await supabase.from('subjects').insert(subjectsToInsert);
+                if (subError) throw subError;
+            }
+
+            // 5. Create Students & Provision Accounts
+            toast.loading('Step 5/6: Processing students...', { id: loadingToast });
+            let finalStudents = [...students];
+            if (studentFile) {
+                const excelData = await BulkUploadService.parseExcel(studentFile);
+                finalStudents = [...finalStudents, ...excelData];
+            }
+
+            if (finalStudents.length > 0) {
+                // Insert into public.students table
+                const studentsToInsert = finalStudents.map((s: any) => ({
+                    institution_id: institutionId,
+                    name: s.name,
+                    register_number: s.register_number || s.registerNumber,
+                    class_name: s.class_name || s.class || s.className,
+                    section: s.section,
+                    dob: s.dob,
+                    gender: s.gender,
+                    parent_name: s.parent_name || s.parentName,
+                    parent_contact: s.parent_contact || s.parentContact,
+                    email: s.email,
+                    address: s.address
+                }));
+                const { error: stdError } = await supabase.from('students').insert(studentsToInsert);
+                if (stdError) throw stdError;
+
+                // Provision Auth Accounts for Students
+                const studentProvisionData = finalStudents.filter(s => s.email).map(s => ({
+                    ...s,
+                    role: 'student'
+                }));
+
+                if (studentProvisionData.length > 0) {
+                    const results = await BulkUploadService.bulkCreateUsers(
+                        studentProvisionData as any,
+                        institutionId,
+                        (current, total) => {
+                            toast.loading(`Step 5/6: Provisioning students (${current}/${total})...`, { id: loadingToast });
+                        }
+                    );
+                    const successfulCount = results.filter(r => r.status === 'success').length;
+                    if (successfulCount > 0) {
+                        BulkUploadService.downloadResults(results, `${institutionId}-student-credentials.xlsx`);
+                    }
+                }
+            }
+
+            // 6. Create Staff (Bulk User Creation)
+            toast.loading('Step 6/6: Provisioning staff accounts...', { id: loadingToast });
+            let finalStaff = [...staff];
+            if (staffFile) {
+                const excelData = await BulkUploadService.parseExcel(staffFile);
+                finalStaff = [...finalStaff, ...excelData.map(s => ({ ...s, role: 'faculty' }))];
+            }
+
+            if (finalStaff.length > 0) {
+                // Ensure manual staff entries have faculty role if not specified
+                const staffToProvision = finalStaff.filter(s => s.email).map(s => ({
+                    ...s,
+                    role: s.role || 'faculty'
+                }));
+
+                const results = await BulkUploadService.bulkCreateUsers(
+                    staffToProvision as any,
+                    institutionId,
+                    (current, total) => {
+                        toast.loading(`Step 6/6: Provisioning staff (${current}/${total})...`, { id: loadingToast });
+                    }
+                );
+
+                const successfulCount = results.filter(r => r.status === 'success').length;
+
+                if (successfulCount > 0) {
+                    // Sync staff details to public.staff_details table
+                    const staffDetailsToInsert = results
+                        .filter(r => r.status === 'success')
+                        .map(r => {
+                            const original = staffToProvision.find(s => s.email === r.email);
+                            return {
+                                profile_id: r.userId,
+                                institution_id: institutionId,
+                                staff_id: original?.staffId || (original as any).staff_id,
+                                role: original?.role,
+                                subject_assigned: original?.subjectAssigned || (original as any).subject_assigned,
+                                class_assigned: original?.classAssigned || (original as any).class_assigned,
+                                section_assigned: original?.sectionAssigned || (original as any).section_assigned
+                            };
+                        })
+                        .filter(sd => sd.profile_id);
+
+                    if (staffDetailsToInsert.length > 0) {
+                        const { error: sdError } = await supabase.from('staff_details').insert(staffDetailsToInsert);
+                        if (sdError) console.error('Error inserting staff details:', sdError);
+                    }
+
+                    BulkUploadService.downloadResults(results, `${institutionId}-staff-credentials.xlsx`);
+                }
+            }
+
+            toast.dismiss(loadingToast);
+            toast.success('Institution onboarding completed successfully!');
+            navigate('/admin');
+        } catch (error: any) {
+            toast.dismiss(loadingToast);
+            toast.error(`Error: ${error.message}`);
+            console.error(error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const downloadTemplate = (type: 'student' | 'staff') => {
@@ -288,6 +484,8 @@ export function AddInstitution() {
                                 <Label htmlFor="schoolCode">School Code *</Label>
                                 <Input
                                     id="schoolCode"
+                                    value={institutionId}
+                                    onChange={(e) => setInstitutionId(e.target.value)}
                                     placeholder="Enter unique school code (e.g. SCH001)"
                                 />
                             </div>
@@ -797,11 +995,30 @@ export function AddInstitution() {
                                                         onChange={(e) => updateStaffMember(staffMember.id, 'classAssigned', e.target.value)}
                                                         placeholder="Class Assigned"
                                                     />
+                                                    <Select
+                                                        value={staffMember.sectionAssigned}
+                                                        onValueChange={(value) => updateStaffMember(staffMember.id, 'sectionAssigned', value)}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Section" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {['A', 'B', 'C', 'D', 'E'].map(s => (
+                                                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Input
+                                                        type="date"
+                                                        value={staffMember.dob}
+                                                        onChange={(e) => updateStaffMember(staffMember.id, 'dob', e.target.value)}
+                                                        placeholder="Date of Birth"
+                                                    />
                                                     <Input
                                                         type="email"
                                                         value={staffMember.email}
                                                         onChange={(e) => updateStaffMember(staffMember.id, 'email', e.target.value)}
-                                                        placeholder="Email"
+                                                        placeholder="Email Address"
                                                     />
                                                     <Input
                                                         type="tel"
@@ -1018,9 +1235,18 @@ export function AddInstitution() {
                         <ChevronRight className="w-4 h-4 ml-2" />
                     </Button>
                 ) : (
-                    <Button onClick={handleSubmit} className="btn-primary">
-                        <Check className="w-4 h-4 mr-2" />
-                        Submit & Create Institution
+                    <Button onClick={handleSubmit} className="btn-primary" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                <Check className="w-4 h-4 mr-2" />
+                                Submit & Create Institution
+                            </>
+                        )}
                     </Button>
                 )}
             </div>
