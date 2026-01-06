@@ -81,12 +81,23 @@ export function InstitutionFaculty() {
         {
             key: 'actions',
             header: 'Actions',
-            render: () => (
+            render: (item: typeof faculty[0]) => (
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.location.href = `mailto:${item.email}`}
+                        title="Send Email"
+                    >
                         <Mail className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">View Profile</Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toast.info(`Viewing profile for ${item.name}`)}
+                    >
+                        View Profile
+                    </Button>
                 </div>
             ),
         },

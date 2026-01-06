@@ -61,6 +61,25 @@ export function InstitutionCalendar() {
         }, 1000);
     };
 
+    // Calendar Logic
+    const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1)); // Default to Jan 2026 as per design
+
+    const getDaysInMonth = (date: Date) => {
+        return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    };
+
+    const getFirstDayOfMonth = (date: Date) => {
+        return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    };
+
+    const handlePrevMonth = () => {
+        setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+        setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    };
+
     return (
         <InstitutionLayout>
             <PageHeader
@@ -147,10 +166,16 @@ export function InstitutionCalendar() {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="dashboard-card pt-6">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-semibold text-lg">January 2026</h3>
+                            <h3 className="font-semibold text-lg">
+                                {currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                            </h3>
                             <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm"><ChevronLeft className="w-4 h-4" /></Button>
-                                <Button variant="outline" size="sm"><ChevronRight className="w-4 h-4" /></Button>
+                                <Button variant="outline" size="sm" onClick={handlePrevMonth}>
+                                    <ChevronLeft className="w-4 h-4" />
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={handleNextMonth}>
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
                             </div>
                         </div>
 
@@ -158,21 +183,51 @@ export function InstitutionCalendar() {
                             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                                 <div key={day} className="bg-muted p-2 text-center text-xs font-semibold text-muted-foreground">{day}</div>
                             ))}
-                            {Array.from({ length: 31 }).map((_, i) => (
-                                <div key={i} className={`bg-background min-h-[100px] p-2 border-t border-r last:border-r-0 ${i + 1 === 15 ? 'bg-primary/5' : ''}`}>
-                                    <span className={`text-sm ${i + 1 === 15 ? 'font-bold text-primary' : ''}`}>{i + 1}</span>
-                                    {i + 1 === 15 && (
-                                        <div className="mt-1 p-1 text-[10px] bg-primary/20 text-primary-foreground rounded truncate">
-                                            New Session
-                                        </div>
-                                    )}
-                                    {i + 1 === 26 && (
-                                        <div className="mt-1 p-1 text-[10px] bg-success/20 text-success-foreground rounded truncate">
-                                            Republic Day
-                                        </div>
-                                    )}
-                                </div>
+
+                            {/* Empty cells for days before start of month */}
+                            {Array.from({ length: getFirstDayOfMonth(currentDate) }).map((_, i) => (
+                                <div key={`empty-${i}`} className="bg-background/50 min-h-[100px] border-t border-r last:border-r-0" />
                             ))}
+
+                            {/* Actual days */}
+                            {Array.from({ length: getDaysInMonth(currentDate) }).map((_, i) => {
+                                const day = i + 1;
+                                const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                                const dateStr = `${dateObj.toLocaleString('en-US', { month: 'short' })} ${day.toString().padStart(2, '0')}, ${dateObj.getFullYear()}`;
+
+                                const today = new Date();
+                                const isToday = day === today.getDate() &&
+                                    currentDate.getMonth() === today.getMonth() &&
+                                    currentDate.getFullYear() === today.getFullYear();
+
+                                // Enhanced event matching to handle ranges (basic implementation)
+                                const dayEvents = events.filter(e => {
+                                    if (e.date.includes('-')) {
+                                        // Handle simple ranges if needed, currently defaulting to string match for exact dates
+                                        // or simple "starts with" logic if simpler
+                                        return e.date.includes(dateStr);
+                                    }
+                                    return e.date === dateStr;
+                                });
+
+                                return (
+                                    <div key={`day-${day}`} className={`bg-background min-h-[100px] p-2 border-t border-r last:border-r-0 hover:bg-muted/30 transition-colors ${isToday ? 'bg-primary/5' : ''}`}>
+                                        <div className="flex justify-between items-start">
+                                            <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{day}</span>
+                                        </div>
+                                        <div className="space-y-1 mt-1">
+                                            {dayEvents.map((event, idx) => (
+                                                <div key={idx} className={`p-1 text-[10px] rounded truncate border ${event.type === 'holiday' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                                                        event.type === 'exam' ? 'bg-warning/10 text-warning border-warning/20' :
+                                                            'bg-primary/10 text-primary border-primary/20'
+                                                    }`} title={event.title}>
+                                                    {event.title}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
