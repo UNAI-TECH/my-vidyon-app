@@ -685,7 +685,7 @@ export function AddInstitution() {
                                     <SelectContent>
                                         <SelectItem value="matriculation">Matriculation</SelectItem>
                                         <SelectItem value="cbse">CBSE</SelectItem>
-                                        <SelectItem value="icse">ICSE</SelectItem>
+                                        <SelectItem value="higher-secondary">Higher Secondary</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
