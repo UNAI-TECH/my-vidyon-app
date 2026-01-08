@@ -85,9 +85,7 @@ const steps = [
     { id: 1, name: 'Basic Details', icon: Building2 },
     { id: 2, name: 'Groups & Classes', icon: BookOpen },
     { id: 3, name: 'Subjects', icon: BookOpen },
-    { id: 4, name: 'Students', icon: GraduationCap },
-    { id: 5, name: 'Staff', icon: UserCog },
-    { id: 6, name: 'Access & Roles', icon: Users },
+    { id: 4, name: 'Access & Roles', icon: Users },
 ];
 
 export function AddInstitution() {
@@ -468,7 +466,7 @@ export function AddInstitution() {
 
     const handleNext = () => {
         if (validateStep(currentStep)) {
-            if (currentStep < 6) {
+            if (currentStep < 4) {
                 setCurrentStep(currentStep + 1);
             }
         }
@@ -600,119 +598,19 @@ export function AddInstitution() {
                 }
             }
 
+
             // 4. Create Subjects
-            toast.loading('Step 4/6: Adding subjects...', { id: loadingToast });
+            toast.loading('Step 4/4: Adding subjects...', { id: loadingToast });
             if (subjects.length > 0) {
                 const subjectsToInsert = subjects.map(s => ({
                     institution_id: institutionId,
                     name: s.name,
-                    code: s.code,
+                    code: s.code || '',
                     class_name: s.className,
                     group_name: s.group
                 }));
                 const { error: subError } = await supabase.from('subjects').insert(subjectsToInsert);
                 if (subError) throw subError;
-            }
-
-            // 5. Create Students & Provision Accounts
-            toast.loading('Step 5/6: Processing students...', { id: loadingToast });
-            let finalStudents = [...students];
-            if (studentFile) {
-                const excelData = await BulkUploadService.parseExcel(studentFile);
-                finalStudents = [...finalStudents, ...excelData];
-            }
-
-            if (finalStudents.length > 0) {
-                // Insert into public.students table
-                const studentsToInsert = finalStudents.map((s: any) => ({
-                    institution_id: institutionId,
-                    name: s.name,
-                    register_number: s.register_number || s.registerNumber,
-                    class_name: s.class_name || s.class || s.className,
-                    section: s.section,
-                    dob: s.dob,
-                    gender: s.gender,
-                    parent_name: s.parent_name || s.parentName,
-                    parent_contact: s.parent_contact || s.parentContact,
-                    email: s.email,
-                    address: s.address
-                }));
-                const { error: stdError } = await supabase.from('students').insert(studentsToInsert);
-                if (stdError) throw stdError;
-
-                // Provision Auth Accounts for Students
-                const studentProvisionData = finalStudents.filter(s => s.email).map(s => ({
-                    ...s,
-                    register_number: s.register_number || s.registerNumber,
-                    role: 'student'
-                }));
-
-                if (studentProvisionData.length > 0) {
-                    const results = await BulkUploadService.bulkCreateUsers(
-                        studentProvisionData as any,
-                        institutionId,
-                        (current, total) => {
-                            toast.loading(`Step 5/6: Provisioning students (${current}/${total})...`, { id: loadingToast });
-                        }
-                    );
-                    const successfulCount = results.filter(r => r.status === 'success').length;
-                    if (successfulCount > 0) {
-                        BulkUploadService.downloadResults(results, `${institutionId}-student-credentials.xlsx`);
-                    }
-                }
-            }
-
-            // 6. Create Staff (Bulk User Creation)
-            toast.loading('Step 6/6: Provisioning staff accounts...', { id: loadingToast });
-            let finalStaff = [...staff];
-            if (staffFile) {
-                const excelData = await BulkUploadService.parseExcel(staffFile);
-                finalStaff = [...finalStaff, ...excelData.map(s => ({ ...s, role: 'faculty' }))];
-            }
-
-            if (finalStaff.length > 0) {
-                // Ensure manual staff entries have faculty role if not specified
-                const staffToProvision = finalStaff.filter(s => s.email).map(s => ({
-                    ...s,
-                    staff_id: s.staff_id || s.staffId,
-                    role: s.role || 'faculty'
-                }));
-
-                const results = await BulkUploadService.bulkCreateUsers(
-                    staffToProvision as any,
-                    institutionId,
-                    (current, total) => {
-                        toast.loading(`Step 6/6: Provisioning staff (${current}/${total})...`, { id: loadingToast });
-                    }
-                );
-
-                const successfulCount = results.filter(r => r.status === 'success').length;
-
-                if (successfulCount > 0) {
-                    // Sync staff details to public.staff_details table
-                    const staffDetailsToInsert = results
-                        .filter(r => r.status === 'success')
-                        .map(r => {
-                            const original = staffToProvision.find(s => s.email === r.email);
-                            return {
-                                profile_id: r.userId,
-                                institution_id: institutionId,
-                                staff_id: original?.staffId || (original as any).staff_id,
-                                role: original?.role,
-                                subject_assigned: original?.subjectAssigned || (original as any).subject_assigned,
-                                class_assigned: original?.classAssigned || (original as any).class_assigned,
-                                section_assigned: original?.sectionAssigned || (original as any).section_assigned
-                            };
-                        })
-                        .filter(sd => sd.profile_id);
-
-                    if (staffDetailsToInsert.length > 0) {
-                        const { error: sdError } = await supabase.from('staff_details').insert(staffDetailsToInsert);
-                        if (sdError) console.error('Error inserting staff details:', sdError);
-                    }
-
-                    BulkUploadService.downloadResults(results, `${institutionId}-staff-credentials.xlsx`);
-                }
             }
 
             toast.dismiss(loadingToast);
@@ -1057,21 +955,13 @@ export function AddInstitution() {
                             <div className="space-y-4">
                                 {subjects.map((subject) => (
                                     <Card key={subject.id} className="p-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                             <div className="space-y-2">
                                                 <Label>Subject Name</Label>
                                                 <Input
                                                     value={subject.name}
                                                     onChange={(e) => updateSubject(subject.id, 'name', e.target.value)}
                                                     placeholder="Mathematics"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Subject Code</Label>
-                                                <Input
-                                                    value={subject.code}
-                                                    onChange={(e) => updateSubject(subject.id, 'code', e.target.value)}
-                                                    placeholder="MATH101"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -1485,7 +1375,7 @@ export function AddInstitution() {
                     </div>
                 );
 
-            case 6:
+            case 4:
                 return (
                     <div className="space-y-6">
                         <h3 className="text-lg font-semibold mb-4">Access & Role Assignment</h3>
@@ -1546,14 +1436,6 @@ export function AddInstitution() {
                                 <div className="space-y-2">
                                     <p className="text-sm text-muted-foreground">Subjects Added</p>
                                     <p className="font-medium">{subjects.length}</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-sm text-muted-foreground">Students Added</p>
-                                    <p className="font-medium">{students.length}</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-sm text-muted-foreground">Staff Added</p>
-                                    <p className="font-medium">{staff.length}</p>
                                 </div>
                             </div>
                         </Card>
@@ -1639,7 +1521,7 @@ export function AddInstitution() {
                     Previous
                 </Button>
 
-                {currentStep < 6 ? (
+                {currentStep < 4 ? (
                     <Button onClick={handleNext}>
                         Next
                         <ChevronRight className="w-4 h-4 ml-2" />

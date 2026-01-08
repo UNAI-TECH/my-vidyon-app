@@ -216,6 +216,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: credentials.password,
       });
 
+      // Network Diagnostic
+      try {
+        // Simple health check to see if we can reach the auth server
+        // Using a short timeout for the diagnostic
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 5000);
+        const healthCheck = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health`, {
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        console.log('[AUTH] Diagnostic: Auth server reachable, status:', healthCheck.status);
+      } catch (netErr) {
+        console.error('[AUTH] Diagnostic: Network check failed:', netErr);
+        // We don't block execution here, but we alert the user if we know it failed
+        alert("Network Warning: Your browser cannot connect to the Supabase Authentication server. This may be due to a firewall, VPN, or ad-blocker.");
+      }
+
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Login request timed out after 60 seconds. Please check your internet connection.')), 60000)
       );
@@ -253,7 +270,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('[AUTH] Login error:', error);
       setState(prev => ({ ...prev, isLoading: false }));
-      toast.error(error.message || "An error occurred during login");
+      const errorMessage = error.message || "An error occurred during login";
+      alert(`Login Error: ${errorMessage}`);
+      toast.error(errorMessage);
       throw error;
     }
   }, [navigate, fetchUserProfile]);
