@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { useInstitution } from '@/context/InstitutionContext';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -11,9 +11,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { UserCheck, Plus, X, GraduationCap } from 'lucide-react';
+import { UserCheck, Plus, X, GraduationCap, Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/common/Badge';
+import * as XLSX from 'xlsx';
 
 interface StaffAssignment {
     id: string; // internal id for UI list key
@@ -88,6 +89,80 @@ export function InstitutionFacultyAssigning() {
 
     const handleRemoveStaff = (id: string) => {
         setSubjectStaff(subjectStaff.filter(s => s.id !== id));
+    };
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleBulkUpdate = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+                const newAssignments: StaffAssignment[] = [];
+                let skipCount = 0;
+
+                // Skip header if it exists
+                const startRow = (jsonData[0]?.[0]?.toString().toLowerCase().includes('name') ||
+                    jsonData[0]?.[0]?.toString().toLowerCase().includes('staff') ||
+                    jsonData[0]?.[0]?.toString().toLowerCase().includes('id')) ? 1 : 0;
+
+                for (let i = startRow; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+
+                    const input = row[0]?.toString().trim();
+                    if (!input) continue;
+
+                    // Try to find staff by ID or Name
+                    const staff = allStaffMembers.find(s =>
+                        s.id.toLowerCase() === input.toLowerCase() ||
+                        s.name.toLowerCase() === input.toLowerCase()
+                    );
+
+                    if (staff) {
+                        // Avoid duplicates in the current list
+                        if (!subjectStaff.some(s => s.staffId === staff.id) && !newAssignments.some(s => s.staffId === staff.id)) {
+                            newAssignments.push({
+                                id: (Date.now() + i).toString(),
+                                staffId: staff.id,
+                                staffName: staff.name
+                            });
+                        }
+                    } else {
+                        skipCount++;
+                    }
+                }
+
+                if (newAssignments.length > 0) {
+                    setSubjectStaff(prev => [...prev, ...newAssignments]);
+                    toast.success(`Successfully added ${newAssignments.length} staff members.`);
+                }
+
+                if (skipCount > 0) {
+                    toast.warning(`${skipCount} names in the file didn't match our staff records.`);
+                }
+
+                if (newAssignments.length === 0 && skipCount === 0) {
+                    toast.info("The file appears to be empty or in an incorrect format.");
+                }
+
+            } catch (error) {
+                console.error("Bulk update error:", error);
+                toast.error("Format error: Please ensure you upload a valid Excel or CSV file.");
+            }
+        };
+        reader.readAsArrayBuffer(file);
+
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleStaffChange = (id: string, staffId: string) => {
@@ -253,15 +328,42 @@ export function InstitutionFacultyAssigning() {
                                 <div className="space-y-4 border rounded-lg p-4 bg-muted/10">
                                     <div className="flex items-center justify-between">
                                         <Label className="text-base">Teachers for {allSubjects.find(s => s.id === selectedSubject)?.name}</Label>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            onClick={handleAddStaff}
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            Add Staff
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleBulkUpdate}
+                                                accept=".csv, .xlsx, .xls"
+                                                className="hidden"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="flex items-center gap-2 border-primary/50 text-primary hover:bg-primary/5 shadow-sm"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                Bulk Update
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={handleAddStaff}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                Add Staff
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-primary/5 border border-primary/10 rounded-md p-2 flex items-start gap-2 text-[10px] text-muted-foreground shadow-inner">
+                                        <FileText className="w-3 h-3 mt-0.5 text-primary" />
+                                        <div>
+                                            <p className="font-semibold text-primary/80">Bulk Update Format:</p>
+                                            <p>Upload a .csv or .xlsx with a single column containing <strong>Staff Names</strong> or <strong>IDs</strong>.</p>
+                                        </div>
                                     </div>
 
                                     {subjectStaff.length === 0 ? (
@@ -347,6 +449,6 @@ export function InstitutionFacultyAssigning() {
                     </Button>
                 </div>
             </div>
-        </InstitutionLayout>
+        </InstitutionLayout >
     );
 }
