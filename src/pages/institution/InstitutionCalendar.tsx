@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -34,20 +34,23 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { format, parse, isValid } from 'date-fns';
 
-const initialEvents = [
-    { id: '1', title: 'New Academic Session', date: 'Apr 01, 2026', type: 'academic', category: 'Major Event' },
-    { id: '2', title: 'Mid-Term 1', date: 'Jul 20-25, 2026', type: 'exam', category: 'Mid-Term 1' },
-    { id: '3', title: 'Onam Celebrations', date: 'Aug 26, 2026', type: 'cultural', category: 'Celebration' },
-    { id: '4', title: 'Quarterly Exams', date: 'Sep 15-25, 2026', type: 'exam', category: 'Quarterly' },
-    { id: '5', title: 'Diwali Celebration', date: 'Nov 08, 2026', type: 'cultural', category: 'Celebration' },
-    { id: '6', title: 'Annual Sports Day', date: 'Nov 14, 2026', type: 'cultural', category: 'Event' },
-    { id: '7', title: 'Half-yearly Exams', date: 'Dec 10-22, 2026', type: 'exam', category: 'Half-yearly' },
-    { id: '8', title: 'Pongal Celebrations', date: 'Jan 14, 2027', type: 'cultural', category: 'Celebration' },
-    { id: '9', title: 'Model Exams', date: 'Feb 10-20, 2027', type: 'exam', category: 'Model Exam' },
-    { id: '10', title: 'Annual Exams', date: 'Mar 15-30, 2027', type: 'exam', category: 'Annual' },
-    { id: '11', title: 'Summer Vacation', date: 'May 01 - Jun 30, 2027', type: 'holiday', category: 'Holiday' },
-];
+// Type definition matching DB
+interface AcademicEvent {
+    id: string;
+    title: string;
+    date: string; // UI format string
+    start_date: string; // DB ISO
+    end_date: string; // DB ISO
+    type: string;
+    category: string;
+    description: string;
+    isUserAdded: boolean; // Flag to distiguish (mostly true for DB items)
+    banner?: string | null;
+}
 
 const CLASSES = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const GROUPS = ['BioScience', 'Computer Science', 'Commerce', 'Computer Application'];
@@ -63,7 +66,10 @@ const EXAM_COLORS: Record<string, string> = {
 };
 
 export function InstitutionCalendar() {
-    const [events, setEvents] = useState(initialEvents);
+    const { user } = useAuth();
+    const [events, setEvents] = useState<AcademicEvent[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newEvent, setNewEvent] = useState({
@@ -85,6 +91,75 @@ export function InstitutionCalendar() {
     const [selectedExamClass, setSelectedExamClass] = useState<string | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
     const [viewTimetable, setViewTimetable] = useState<{ exam: string } | null>(null);
+
+    // Fetch Events
+    useEffect(() => {
+        if (!user?.institutionId) return;
+
+        const fetchEvents = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('academic_events')
+                    .select('*')
+                    .eq('institution_id', user.institutionId)
+                    .order('start_date', { ascending: true });
+
+                if (error) throw error;
+
+                if (data) {
+                    const formattedEvents: AcademicEvent[] = data.map(e => {
+                        // Transform DB date to UI string
+                        // Start: 2026-04-01T00:00:00Z -> "Apr 01, 2026"
+                        const start = new Date(e.start_date);
+                        const end = new Date(e.end_date);
+
+                        let dateStr = format(start, 'MMM dd, yyyy');
+                        // Check if range
+                        if (start.getTime() !== end.getTime()) {
+                            dateStr = `${format(start, 'MMM dd')} - ${format(end, 'MMM dd, yyyy')}`;
+                        }
+
+                        return {
+                            id: e.id,
+                            title: e.title,
+                            type: e.event_type, // DB column mapping
+                            category: e.category || 'General',
+                            description: e.description || '',
+                            date: dateStr,
+                            start_date: e.start_date,
+                            end_date: e.end_date,
+                            isUserAdded: true,
+                            banner: null // Add banner support later if needed
+                        };
+                    });
+                    setEvents(formattedEvents);
+                }
+            } catch (err: any) {
+                console.error("Error fetching academic events:", err);
+                toast.error("Failed to load calendar events");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchEvents();
+
+        // Realtime Subscription
+        const channel = supabase
+            .channel('academic_events_changes')
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'academic_events', filter: `institution_id=eq.${user.institutionId}` },
+                () => {
+                    fetchEvents();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+
+    }, [user?.institutionId]);
 
     const handleClassSelect = (cls: string) => {
         setSelectedExamClass(cls);
@@ -133,7 +208,7 @@ export function InstitutionCalendar() {
     `;
 
     // Calendar Logic
-    const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1));
+    const [currentDate, setCurrentDate] = useState(new Date()); // Default to today
     const [direction, setDirection] = useState<'next' | 'prev'>('next');
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -148,23 +223,72 @@ export function InstitutionCalendar() {
         }
     };
 
-    const handleAddEvent = () => {
+    const handleAddEvent = async () => {
+        if (!user?.institutionId) return;
         setIsSubmitting(true);
-        setTimeout(() => {
-            const bannerUrl = eventBanner ? URL.createObjectURL(eventBanner) : null;
-            const event: any = {
-                id: (events.length + 1).toString(),
-                ...newEvent,
-                isUserAdded: true,
-                banner: bannerUrl
-            };
-            setEvents([...events, event]);
-            setIsSubmitting(false);
+
+        try {
+            // Parse Dates
+            // logic supports: "Jan 15, 2026"  OR "May 01 - Jun 30, 2027"
+            let start: Date, end: Date;
+            const dateInput = newEvent.date;
+
+            // Very basic heuristic parser
+            if (dateInput.includes('-')) {
+                const [s, e] = dateInput.split('-').map(str => str.trim());
+                // Try to parse parts
+                // Assumption: "May 01" (needs year) or "May 01, 2026"
+                const currentYear = new Date().getFullYear();
+
+                // If "May 01" -> append year
+                let sStr = s; if (!s.match(/\d{4}/)) sStr = `${s}, ${currentYear}`;
+                let eStr = e; if (!e.match(/\d{4}/)) eStr = `${e}, ${currentYear}`;
+
+                // If the input was "May 01 - Jun 30, 2027", the second part has year.
+                // We might want to use the year from the second part for the first part if missing.
+                if (e.match(/\d{4}/) && !s.match(/\d{4}/)) {
+                    const y = e.match(/\d{4}/)![0];
+                    sStr = `${s}, ${y}`;
+                }
+
+                start = new Date(sStr);
+                end = new Date(eStr);
+            } else {
+                let dStr = dateInput;
+                if (!dStr.match(/\d{4}/)) dStr = `${dStr}, ${new Date().getFullYear()}`;
+                start = new Date(dStr);
+                end = new Date(dStr);
+            }
+
+            if (!isValid(start) || !isValid(end)) {
+                toast.error("Invalid date format. Try 'Mon DD, YYYY'");
+                setIsSubmitting(false);
+                return;
+            }
+
+            const { error } = await supabase.from('academic_events').insert([{
+                institution_id: user.institutionId,
+                title: newEvent.title,
+                description: newEvent.description,
+                event_type: newEvent.type,
+                category: newEvent.category,
+                start_date: start.toISOString(),
+                end_date: end.toISOString()
+            }]);
+
+            if (error) throw error;
+
+            toast.success("Event added successfully");
             setIsAddDialogOpen(false);
             setNewEvent({ title: '', date: '', type: '', category: '', description: '' });
             setEventBanner(null);
-            toast.success("Event added successfully");
-        }, 1000);
+
+        } catch (err: any) {
+            console.error("Error adding event:", err);
+            toast.error(err.message || "Failed to add event");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleDeleteClick = (id: string) => {
@@ -172,12 +296,24 @@ export function InstitutionCalendar() {
         setIsDeleteOpen(true);
     };
 
-    const confirmDelete = () => {
-        if (eventToDelete) {
-            setEvents(events.filter(e => e.id !== eventToDelete));
-            toast.success("Event deleted successfully");
-            setIsDeleteOpen(false);
-            setEventToDelete(null);
+    const confirmDelete = async () => {
+        if (eventToDelete && user?.institutionId) {
+            try {
+                const { error } = await supabase
+                    .from('academic_events')
+                    .delete()
+                    .eq('id', eventToDelete)
+                    .eq('institution_id', user.institutionId);
+
+                if (error) throw error;
+
+                toast.success("Event deleted successfully");
+                setIsDeleteOpen(false);
+                setEventToDelete(null);
+            } catch (err: any) {
+                console.error("Error deleting event:", err);
+                toast.error("Failed to delete event");
+            }
         }
     };
 
@@ -253,7 +389,7 @@ export function InstitutionCalendar() {
                                 <DialogHeader>
                                     <DialogTitle>Add Event</DialogTitle>
                                     <DialogDescription>
-                                        Create a new event in the academic calendar.
+                                        Create a new event in the academic calendar. Use format "Mon DD, YYYY" or "Mon DD - Mon DD".
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
@@ -274,7 +410,7 @@ export function InstitutionCalendar() {
                                             value={newEvent.date}
                                             onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="e.g. Jan 15, 2026"
+                                            placeholder="e.g. Apr 15, 2026"
                                         />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
@@ -316,19 +452,7 @@ export function InstitutionCalendar() {
                                             placeholder="Event details..."
                                         />
                                     </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="banner" className="text-right">Banner</Label>
-                                        <div className="col-span-3">
-                                            <Input
-                                                id="banner"
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleFileChange}
-                                                className="cursor-pointer text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                                            />
-                                            {eventBanner && <p className="text-xs text-muted-foreground mt-1">Selected: {eventBanner.name}</p>}
-                                        </div>
-                                    </div>
+                                    {/* Banner upload temporarily disabled in simple CRUD logic */}
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" onClick={handleAddEvent} disabled={!newEvent.title || !newEvent.date || isSubmitting}>
@@ -361,102 +485,74 @@ export function InstitutionCalendar() {
                         </div>
                     </div>
 
-                    <div
-                        key={`${currentDate.toString()}`}
-                        className={`grid grid-cols-7 gap-px bg-border overflow-hidden rounded-lg ${direction === 'next' ? 'animate-slide-next' : 'animate-slide-prev'}`}
-                    >
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                            <div key={day} className="bg-muted p-2 text-center text-xs font-semibold text-muted-foreground">{day}</div>
-                        ))}
+                    {loading ? (
+                        <div className="h-[400px] flex items-center justify-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                        <div
+                            key={`${currentDate.toString()}`}
+                            className={`grid grid-cols-7 gap-px bg-border overflow-hidden rounded-lg ${direction === 'next' ? 'animate-slide-next' : 'animate-slide-prev'}`}
+                        >
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                <div key={day} className="bg-muted p-2 text-center text-xs font-semibold text-muted-foreground">{day}</div>
+                            ))}
 
-                        {/* Empty cells for days before start of month */}
-                        {Array.from({ length: getFirstDayOfMonth(currentDate) }).map((_, i) => (
-                            <div key={`empty-${i}`} className="bg-background/50 min-h-[100px] border-t border-r last:border-r-0" />
-                        ))}
+                            {/* Empty cells for days before start of month */}
+                            {Array.from({ length: getFirstDayOfMonth(currentDate) }).map((_, i) => (
+                                <div key={`empty-${i}`} className="bg-background/50 min-h-[100px] border-t border-r last:border-r-0" />
+                            ))}
 
-                        {/* Actual days */}
-                        {Array.from({ length: getDaysInMonth(currentDate) }).map((_, i) => {
-                            const day = i + 1;
-                            const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-                            const dateStr = `${dateObj.toLocaleString('en-US', { month: 'short' })} ${day.toString().padStart(2, '0')}, ${dateObj.getFullYear()}`;
+                            {/* Actual days */}
+                            {Array.from({ length: getDaysInMonth(currentDate) }).map((_, i) => {
+                                const day = i + 1;
+                                const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
 
-                            const today = new Date();
-                            const isToday = day === today.getDate() &&
-                                currentDate.getMonth() === today.getMonth() &&
-                                currentDate.getFullYear() === today.getFullYear();
+                                const today = new Date();
+                                const isToday = day === today.getDate() &&
+                                    currentDate.getMonth() === today.getMonth() &&
+                                    currentDate.getFullYear() === today.getFullYear();
 
-                            // Enhanced event matching to handle ranges
-                            const dayEvents = events.filter(e => {
-                                // Filter Logic
-                                if (e.type === 'holiday' && !filterState.showHolidays) return false;
-                                // if (e.type === 'exam' && !filterState.showExams) return false; // Always show exams now
+                                // Event Filtering and Ranges
+                                const dayEvents = events.filter(e => {
+                                    if (e.type === 'holiday' && !filterState.showHolidays) return false;
+                                    // if (e.type === 'exam' && !filterState.showExams) return false;
 
-                                const eventDate = e.date;
-
-                                // Handle "May 01 - Jun 30, 2027" format
-                                if (eventDate.includes(' - ')) {
-                                    const [startStr, endStr] = eventDate.split(' - ');
-                                    // Simple parser assuming "Mon DD" or "Mon DD, YYYY" format parts might need year handling
-                                    // For specific mock data "May 01 - Jun 30, 2027"
-                                    const year = parseInt(eventDate.split(', ')[1]) || dateObj.getFullYear();
-                                    const start = new Date(`${startStr}, ${year}`);
-                                    const end = new Date(endStr); // endStr usually has the year "Jun 30, 2027"
-
-                                    // Reset times for comparison
+                                    const start = new Date(e.start_date);
+                                    const end = new Date(e.end_date);
+                                    // Normalise time
                                     start.setHours(0, 0, 0, 0);
                                     end.setHours(0, 0, 0, 0);
-                                    const check = new Date(dateObj);
-                                    check.setHours(0, 0, 0, 0);
+                                    dateObj.setHours(0, 0, 0, 0);
 
-                                    return check >= start && check <= end;
-                                }
+                                    return dateObj >= start && dateObj <= end;
+                                });
 
-                                // Handle "Jul 20-25, 2026" format
-                                if (eventDate.match(/[a-zA-Z]{3}\s\d{1,2}-\d{1,2},\s\d{4}/)) {
-                                    const parts = eventDate.split(' '); // ["Jul", "20-25,", "2026"]
-                                    const monthStr = parts[0];
-                                    const rangePart = parts[1].replace(',', '');
-                                    const yearStr = parts[2];
+                                return (
+                                    <div key={`day-${day}`} className={`bg-background min-h-[100px] p-2 border-t border-r last:border-r-0 hover:bg-muted/30 transition-colors ${isToday ? 'bg-primary/5' : ''}`}>
+                                        <div className="flex justify-between items-start">
+                                            <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{day}</span>
+                                        </div>
+                                        <div className="space-y-1 mt-1">
+                                            {dayEvents.map((event, idx) => {
+                                                const colorClass = event.type === 'exam' && EXAM_COLORS[event.category]
+                                                    ? EXAM_COLORS[event.category]
+                                                    : event.type === 'holiday'
+                                                        ? 'bg-destructive/10 text-destructive border-destructive/20'
+                                                        : 'bg-primary/10 text-primary border-primary/20';
 
-                                    const [startDay, endDay] = rangePart.split('-').map(Number);
-
-                                    const currentMonthStr = dateObj.toLocaleString('en-US', { month: 'short' });
-
-                                    if (monthStr === currentMonthStr && dateObj.getFullYear().toString() === yearStr) {
-                                        const d = dateObj.getDate();
-                                        return d >= startDay && d <= endDay;
-                                    }
-                                    return false;
-                                }
-
-                                // Exact Match
-                                return e.date === dateStr;
-                            });
-
-                            return (
-                                <div key={`day-${day}`} className={`bg-background min-h-[100px] p-2 border-t border-r last:border-r-0 hover:bg-muted/30 transition-colors ${isToday ? 'bg-primary/5' : ''}`}>
-                                    <div className="flex justify-between items-start">
-                                        <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{day}</span>
+                                                return (
+                                                    <div key={`${event.id}-${idx}`} className={`p-1 text-[10px] rounded truncate border ${colorClass}`} title={event.title}>
+                                                        {event.title}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                    <div className="space-y-1 mt-1">
-                                        {dayEvents.map((event, idx) => {
-                                            const colorClass = event.type === 'exam' && EXAM_COLORS[event.category]
-                                                ? EXAM_COLORS[event.category]
-                                                : event.type === 'holiday'
-                                                    ? 'bg-destructive/10 text-destructive border-destructive/20'
-                                                    : 'bg-primary/10 text-primary border-primary/20';
-
-                                            return (
-                                                <div key={idx} className={`p-1 text-[10px] rounded truncate border ${colorClass}`} title={event.title}>
-                                                    {event.title}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -467,44 +563,39 @@ export function InstitutionCalendar() {
                     Upcoming Events
                 </h3>
 
-                {events.filter((e: any) => e.isUserAdded).length > 0 ? (
+                {events.length > 0 ? (
                     <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
-                        {events
-                            .filter((e: any) => e.isUserAdded)
-                            .map((event: any, index) => (
-                                <div key={index} className="flex-none w-[300px] rounded-xl overflow-hidden border bg-card hover:shadow-md transition-all group relative">
-                                    <div className="h-40 bg-muted relative overflow-hidden">
-                                        {event.banner ? (
-                                            <img src={event.banner} alt={event.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-primary/5">
-                                                <CalendarIcon className="w-12 h-12 text-primary/20" />
-                                            </div>
-                                        )}
-                                        <div className="absolute top-2 right-2">
-                                            <Badge variant="info" className="bg-background/80 backdrop-blur-sm text-foreground shadow-sm uppercase text-[10px]">{event.type}</Badge>
-                                        </div>
+                        {events.map((event, index) => (
+                            <div key={event.id} className="flex-none w-[300px] rounded-xl overflow-hidden border bg-card hover:shadow-md transition-all group relative">
+                                <div className="h-40 bg-muted relative overflow-hidden">
+                                    {/* Placeholder or banner */}
+                                    <div className="w-full h-full flex items-center justify-center bg-primary/5">
+                                        <CalendarIcon className="w-12 h-12 text-primary/20" />
                                     </div>
-                                    <button
-                                        onClick={() => handleDeleteClick(event.id)}
-                                        className="absolute top-2 left-2 p-1.5 bg-background/80 text-destructive rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-white z-10"
-                                        title="Delete Event"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                    <div className="p-4 bg-card">
-                                        <h4 className="font-semibold text-base mb-1 line-clamp-1" title={event.title}>{event.title}</h4>
-                                        <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
-                                            <Clock className="w-3 h-3" />
-                                            {event.date}
-                                        </div>
-                                        {event.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{event.description}</p>}
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-primary font-medium">{event.category}</span>
-                                        </div>
+                                    <div className="absolute top-2 right-2">
+                                        <Badge variant="info" className="bg-background/80 backdrop-blur-sm text-foreground shadow-sm uppercase text-[10px]">{event.type}</Badge>
                                     </div>
                                 </div>
-                            ))}
+                                <button
+                                    onClick={() => handleDeleteClick(event.id)}
+                                    className="absolute top-2 left-2 p-1.5 bg-background/80 text-destructive rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-white z-10"
+                                    title="Delete Event"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                                <div className="p-4 bg-card">
+                                    <h4 className="font-semibold text-base mb-1 line-clamp-1" title={event.title}>{event.title}</h4>
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                                        <Clock className="w-3 h-3" />
+                                        {event.date}
+                                    </div>
+                                    {event.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{event.description}</p>}
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-primary font-medium">{event.category}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <div className="border-dashed border-2 bg-muted/30 rounded-lg flex flex-col items-center justify-center h-48 text-muted-foreground" style={{ marginLeft: '-0.5rem', marginRight: '-0.5rem' }}>
@@ -524,7 +615,7 @@ export function InstitutionCalendar() {
                             Delete Event
                         </DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete this event? This action cannot be undone and the event will be removed for all users (parents, students, faculty).
+                            Are you sure you want to delete this event? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:justify-end">
@@ -533,7 +624,7 @@ export function InstitutionCalendar() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            {/* Exam Schedule Section */}
+            {/* Exam Schedule Section - Static for now as it maps to timetable which is big feature */}
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Exam Schedule Section */}
                 <div className="lg:col-span-2 dashboard-card overflow-hidden bg-card border shadow-sm relative animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -686,8 +777,7 @@ export function InstitutionCalendar() {
                 </div >
             </div >
 
-            {/* Timetable Popup */}
-            {/* Timetable Popup */}
+            {/* Timetable Popup - Static */}
             <Dialog open={!!viewTimetable} onOpenChange={(open) => !open && setViewTimetable(null)}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
@@ -753,4 +843,3 @@ export function InstitutionCalendar() {
         </InstitutionLayout >
     );
 }
-

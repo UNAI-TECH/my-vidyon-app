@@ -14,9 +14,14 @@ import { useInstitution } from '@/context/InstitutionContext';
 import { Card } from "@/components/ui/card";
 
 export function InstitutionDepartments() {
-    const { subjects, classTeachers, allStaffMembers } = useInstitution();
+    const { subjects, classTeachers, allStaffMembers, allClasses } = useInstitution();
     const [viewMode, setViewMode] = useState<string>('subjects'); // 'subjects' | 'classes'
-    const [selectedSubject, setSelectedSubject] = useState<string>('1');
+    const [selectedSubject, setSelectedSubject] = useState<string>('');
+
+    // Select first subject by default if not selected
+    if (!selectedSubject && subjects.length > 0) {
+        setSelectedSubject(subjects[0].id);
+    }
 
     const currentSubjectData = subjects.find(s => s.id === selectedSubject);
 
@@ -26,9 +31,13 @@ export function InstitutionDepartments() {
         Object.entries(classTeachers).forEach(([classId, sections]) => {
             Object.entries(sections).forEach(([sectionId, teacherId]) => {
                 const teacher = allStaffMembers.find(s => s.id === teacherId);
+                const classInfo = allClasses.find(c => c.id === classId && c.section === sectionId);
+                // Fallback to ID if name not found (though context should provide it)
+                const className = classInfo ? `${classInfo.name} - ${classInfo.section}` : `${classId} - ${sectionId}`;
+
                 if (teacher) {
                     classTeacherList.push({
-                        classSection: `${classId} - ${sectionId}`,
+                        classSection: className,
                         teacherName: teacher.name,
                         teacherId: teacher.id
                     });

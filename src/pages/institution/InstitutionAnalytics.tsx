@@ -1,150 +1,247 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
-import { AreaChart } from '@/components/charts/AreaChart';
-import { DonutChart } from '@/components/charts/DonutChart';
-import { BarChart } from '@/components/charts/BarChart';
-import { Button } from '@/components/ui/button';
-import { Download, Calendar, Filter } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+    Users,
+    GraduationCap,
+    School,
+    TrendingUp,
+    ArrowUpRight,
+    ArrowDownRight,
+    IndianRupee,
+    Activity
+} from 'lucide-react';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    LineChart,
+    Line,
+    PieChart,
+    Pie,
+    Cell
+} from 'recharts';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { format } from 'date-fns';
 
-// Mock Data Sets
-const PERIODS = {
-    THIS_YEAR: 'this_year',
-    LAST_YEAR: 'last_year',
-};
-
-const DATA = {
-    [PERIODS.THIS_YEAR]: {
-        revenue: [
-            { name: 'Jul', value: 8.5 },
-            { name: 'Aug', value: 9.2 },
-            { name: 'Sep', value: 10.5 },
-            { name: 'Oct', value: 11.8 },
-            { name: 'Nov', value: 12.1 },
-            { name: 'Dec', value: 12.5 },
-        ],
-        kpis: [
-            { label: 'Avg. Retention Rate', value: '94.5%', trend: '+2.1%', status: 'success' },
-            { label: 'Faculty-Student Ratio', value: '1:18', trend: 'Stable', status: 'primary' },
-            { label: 'Placement Rate', value: '88.2%', trend: '+4.5%', status: 'success' },
-            { label: 'Avg. Student GPA', value: '3.42', trend: '-0.1%', status: 'warning' },
-        ]
-    },
-    [PERIODS.LAST_YEAR]: {
-        revenue: [
-            { name: 'Jul', value: 7.2 },
-            { name: 'Aug', value: 7.9 },
-            { name: 'Sep', value: 8.4 },
-            { name: 'Oct', value: 9.1 },
-            { name: 'Nov', value: 9.5 },
-            { name: 'Dec', value: 10.2 },
-        ],
-        kpis: [
-            { label: 'Avg. Retention Rate', value: '92.4%', trend: '+1.5%', status: 'success' },
-            { label: 'Faculty-Student Ratio', value: '1:20', trend: '-2.0%', status: 'warning' },
-            { label: 'Placement Rate', value: '83.7%', trend: '+3.2%', status: 'success' },
-            { label: 'Avg. Student GPA', value: '3.38', trend: '+0.2%', status: 'success' },
-        ]
-    }
-};
-
-const studentGrowth = [
-    { name: '2021', value: 1800 },
-    { name: '2022', value: 2050 },
-    { name: '2023', value: 2200 },
-    { name: '2024', value: 2350 },
-    { name: '2025', value: 2450 },
-];
-
-const deptDistribution = [
-    { name: 'Engineering', value: 1200 },
-    { name: 'Management', value: 800 },
-    { name: 'Science', value: 450 },
-];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export function InstitutionAnalytics() {
-    const [period, setPeriod] = useState(PERIODS.THIS_YEAR);
-    const currentData = DATA[period as keyof typeof DATA];
+    const { user } = useAuth();
+    const [stats, setStats] = useState({
+        totalStudents: 0,
+        totalFaculty: 0,
+        totalClasses: 0,
+        totalRevenue: 0
+    });
+    const [departmentData, setDepartmentData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user?.institutionId) return;
+
+        const fetchAnalytics = async () => {
+            try {
+                // 1. Total Students
+                const { count: studentCount, error: sErr } = await supabase
+                    .from('students')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('institution_id', user.institutionId);
+
+                // 2. Total Faculty (Profiles with role faculty/teacher)
+                const { count: facultyCount, error: fErr } = await supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('institution_id', user.institutionId)
+                    .in('role', ['faculty', 'teacher']);
+
+                // 3. Total Classes
+                const { count: classCount, error: cErr } = await supabase
+                    .from('classes')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('institution_id', user.institutionId);
+
+                // 4. Total Revenue (Sum of student_fees paid)
+                const { data: revenueData, error: rErr } = await supabase
+                    .from('student_fees')
+                    .select('amount_paid')
+                    .eq('institution_id', user.institutionId);
+
+                const totalRev = revenueData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0;
+
+                // 5. Department Data (derived from Subjects for now, or assume generic)
+                // Since we don't have a specific 'departments' table other than strings in subjects/staff, 
+                // we'll mock the distribution or query distinct departments from subjects.
+                const { data: deptData } = await supabase
+                    .from('subjects')
+                    .select('department')
+                    .eq('institution_id', user.institutionId);
+
+                const deptCounts: Record<string, number> = {};
+                deptData?.forEach(d => {
+                    const dept = d.department || 'General';
+                    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+                });
+
+                const deptChartData = Object.keys(deptCounts).map(k => ({
+                    name: k,
+                    value: deptCounts[k]
+                }));
+
+                setStats({
+                    totalStudents: studentCount || 0,
+                    totalFaculty: facultyCount || 0,
+                    totalClasses: classCount || 0,
+                    totalRevenue: totalRev
+                });
+
+                if (deptChartData.length > 0) {
+                    setDepartmentData(deptChartData);
+                } else {
+                    // Fallback if no subjects
+                    setDepartmentData([{ name: 'General', value: 100 }]);
+                }
+
+            } catch (err) {
+                console.error("Error fetching analytics:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAnalytics();
+
+    }, [user?.institutionId]);
+
+    // Mock data for charts that require historical data (which we don't have yet)
+    const performanceData = [
+        { month: 'Jan', avg: 78, attendance: 92 },
+        { month: 'Feb', avg: 82, attendance: 94 },
+        { month: 'Mar', avg: 81, attendance: 91 },
+        { month: 'Apr', avg: 85, attendance: 95 },
+        { month: 'May', avg: 88, attendance: 96 },
+    ];
+
 
     return (
         <InstitutionLayout>
             <PageHeader
-                title="Institutional Analytics"
-                subtitle="Detailed insights into institutional performance and growth"
-                actions={
-                    <div className="flex items-center gap-3">
-                        <Select value={period} onValueChange={setPeriod}>
-                            <SelectTrigger className="w-[160px] bg-background">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                                    <SelectValue />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={PERIODS.THIS_YEAR}>This Year</SelectItem>
-                                <SelectItem value={PERIODS.LAST_YEAR}>Last Year</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <Button variant="outline" className="flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter
-                        </Button>
-                        <Button className="flex items-center gap-2">
-                            <Download className="w-4 h-4" />
-                            Export Report
-                        </Button>
-                    </div>
-                }
+                title="Analytics Dashboard"
+                subtitle="Overview of institution performance and statistics"
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="dashboard-card shadow-md transition-shadow hover:shadow-lg">
-                    <h3 className="font-semibold mb-6 text-lg flex items-center justify-between">
-                        Revenue Growth
-                        <span className="text-sm font-normal text-muted-foreground">(in Millions)</span>
-                    </h3>
-                    <AreaChart data={currentData.revenue} color="hsl(var(--success))" height={300} />
-                </div>
-                <div className="dashboard-card shadow-md transition-shadow hover:shadow-lg">
-                    <h3 className="font-semibold mb-6 text-lg">Student Enrollment Growth</h3>
-                    <BarChart data={studentGrowth} color="hsl(var(--institution))" height={300} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalStudents}</div> {/* Real Data */}
+                        <p className="text-xs text-muted-foreground flex items-center mt-1">
+                            <ArrowUpRight className="w-3 h-3 text-success mr-1" />
+                            +0% from last month
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Faculty</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalFaculty}</div> {/* Real Data */}
+                        <p className="text-xs text-muted-foreground flex items-center mt-1">
+                            <Activity className="w-3 h-3 text-primary mr-1" />
+                            Active
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                        <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">₹{(stats.totalRevenue / 1000).toFixed(1)}k</div> {/* Real Data */}
+                        <p className="text-xs text-muted-foreground flex items-center mt-1">
+                            <ArrowUpRight className="w-3 h-3 text-success mr-1" />
+                            +0% from last month
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Active Classes</CardTitle>
+                        <School className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalClasses}</div> {/* Real Data */}
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Across all sections
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="dashboard-card pt-6 shadow-md transition-shadow hover:shadow-lg">
-                    <h3 className="font-semibold mb-6">Program Distribution</h3>
-                    <div className="h-[300px]">
-                        <DonutChart data={deptDistribution} />
-                    </div>
-                </div>
-                <div className="lg:col-span-2 dashboard-card shadow-md transition-shadow hover:shadow-lg">
-                    <h3 className="font-semibold mb-6">Key Performance Indicators</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {currentData.kpis.map((kpi, idx) => (
-                            <div key={idx} className="p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border transition-colors group">
-                                <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider group-hover:text-foreground transition-colors">{kpi.label}</span>
-                                <div className="flex items-end justify-between mt-2">
-                                    <span className="text-2xl font-bold">{kpi.value}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full ${kpi.status === 'success' ? 'bg-success/10 text-success' :
-                                        kpi.status === 'warning' ? 'bg-warning/10 text-warning' :
-                                            'bg-primary/10 text-primary'
-                                        }`}>
-                                        {kpi.trend}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <Card className="col-span-1">
+                    <CardHeader>
+                        <CardTitle>Academic Performance Trend</CardTitle>
+                        <CardDescription>Average scores & attendance over time (Mock)</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={performanceData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                />
+                                <Legend />
+                                <Line type="monotone" dataKey="avg" stroke="hsl(var(--primary))" strokeWidth={2} name="Avg Score" />
+                                <Line type="monotone" dataKey="attendance" stroke="#10b981" strokeWidth={2} name="Attendance" />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+
+                <Card className="col-span-1">
+                    <CardHeader>
+                        <CardTitle>Subject Distribution</CardTitle>
+                        <CardDescription>Breakdown by Department (Based on Subjects)</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={departmentData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {departmentData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend verticalAlign="bottom" height={36} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
             </div>
         </InstitutionLayout>
     );

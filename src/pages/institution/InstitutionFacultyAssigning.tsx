@@ -23,34 +23,49 @@ interface StaffAssignment {
 }
 
 export function InstitutionFacultyAssigning() {
-    const {
-        allSubjects,
-        allStaffMembers,
-        getAssignedStaff,
-        assignStaff,
-        getClassTeacher,
-        assignClassTeacher
-    } = useInstitution();
+    // Dynamic data from context
+    const { allClasses, allSubjects, allStaffMembers, getAssignedStaff, assignStaff, getClassTeacher, assignClassTeacher } = useInstitution();
 
-    const [selectedClass, setSelectedClass] = useState<string>('');
-    const [selectedSection, setSelectedSection] = useState<string>('');
+    // Compute unique class names and sections from allClasses
+    // allClasses = [{id, name, section}, ...]
+    // uniqueClasses = ['Grade 1', 'Grade 2'...]
+    const uniqueClasses = Array.from(new Set(allClasses.map(c => c.name))).sort();
 
-    // Class Teacher State
-    const [selectedClassTeacher, setSelectedClassTeacher] = useState<string>('');
+    // Derived sections for selected class
+    const [availableSections, setAvailableSections] = useState<string[]>([]);
 
-    // Subject Staff State
-    const [selectedSubject, setSelectedSubject] = useState<string>('');
-    const [subjectStaff, setSubjectStaff] = useState<StaffAssignment[]>([]);
-
-    // Mock data for dropdowns
-    const classes = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
-    const sections = ['A', 'B', 'C', 'D'];
+    useEffect(() => {
+        if (selectedClass) {
+            const sections = allClasses
+                .filter(c => c.name === selectedClass)
+                .map(c => c.section)
+                .sort();
+            setAvailableSections(sections);
+            // Reset section if not in new list
+            if (selectedSection && !sections.includes(selectedSection)) {
+                setSelectedSection('');
+            }
+        } else {
+            setAvailableSections([]);
+        }
+    }, [selectedClass, allClasses]);
 
     // Load Class Teacher when Class/Section changes
     useEffect(() => {
         if (selectedClass && selectedSection) {
-            const ctId = getClassTeacher(selectedClass, selectedSection);
-            setSelectedClassTeacher(ctId || '');
+            // Find the class ID for this combination to be precise, or just use name/section if context expects that.
+            // assignStaff/getClassTeacher expect name/section strings as per context definition? 
+            // Wait, looking at context in previous turn: 
+            // const getClassTeacher = (classId: string, section: string) 
+            // It expects classId (UUID) and section.
+            // But here we are selecting 'class Name'. We need to find the UUID.
+            const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
+            const classId = classObj ? classObj.id : '';
+
+            if (classId) {
+                const ctId = getClassTeacher(classId, selectedSection);
+                setSelectedClassTeacher(ctId || '');
+            }
         } else {
             setSelectedClassTeacher('');
         }
@@ -59,20 +74,27 @@ export function InstitutionFacultyAssigning() {
     // Load existing Subject assignments when Subject (or Class/Section) changes
     useEffect(() => {
         if (selectedClass && selectedSection && selectedSubject) {
-            const assigned = getAssignedStaff(selectedClass, selectedSection, selectedSubject);
+            const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
+            const classId = classObj ? classObj.id : '';
 
-            // Map to UI format
-            const uiStaff = assigned.map(s => ({
-                id: Math.random().toString(36).substr(2, 9),
-                staffId: s.id,
-                staffName: s.name
-            }));
+            if (classId) {
+                const assigned = getAssignedStaff(classId, selectedSection, selectedSubject);
 
-            setSubjectStaff(uiStaff);
+                // Map to UI format
+                const uiStaff = assigned.map(s => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    staffId: s.id,
+                    staffName: s.name
+                }));
+
+                setSubjectStaff(uiStaff);
+            } else {
+                setSubjectStaff([]);
+            }
         } else {
             setSubjectStaff([]);
         }
-    }, [selectedClass, selectedSection, selectedSubject, getAssignedStaff]);
+    }, [selectedClass, selectedSection, selectedSubject, getAssignedStaff, allClasses]);
 
     const handleAddStaff = () => {
         if (selectedSubject) {
@@ -189,7 +211,8 @@ export function InstitutionFacultyAssigning() {
 
             // Save Class Teacher
             if (selectedClassTeacher) {
-                assignClassTeacher(selectedClass, selectedSection, selectedClassTeacher);
+                const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
+                if (classObj) assignClassTeacher(classObj.id, selectedSection, selectedClassTeacher);
             }
 
             // Save Subject Staff
@@ -201,8 +224,11 @@ export function InstitutionFacultyAssigning() {
                 }
 
                 if (!hasErrors) {
-                    const staffIds = subjectStaff.map(s => s.staffId).filter(Boolean);
-                    assignStaff(selectedClass, selectedSection, selectedSubject, staffIds);
+                    const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
+                    if (classObj) {
+                        const staffIds = subjectStaff.map(s => s.staffId).filter(Boolean);
+                        assignStaff(classObj.id, selectedSection, selectedSubject, staffIds);
+                    }
                 }
             } else {
                 // If no subject is selected, we only saved Class Teacher, which is valid.
@@ -249,7 +275,7 @@ export function InstitutionFacultyAssigning() {
                                         <SelectValue placeholder="Choose class" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {classes.map((cls) => (
+                                        {uniqueClasses.map((cls) => (
                                             <SelectItem key={cls} value={cls}>{cls}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -263,7 +289,7 @@ export function InstitutionFacultyAssigning() {
                                         <SelectValue placeholder="Choose section" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {sections.map((sec) => (
+                                        {availableSections.map((sec) => (
                                             <SelectItem key={sec} value={sec}>{sec}</SelectItem>
                                         ))}
                                     </SelectContent>

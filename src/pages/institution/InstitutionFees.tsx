@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import {
@@ -19,7 +20,9 @@ import {
     GraduationCap,
     School,
     ArrowRight,
-    MapPin
+    MapPin,
+    Plus,
+    Loader2
 } from 'lucide-react';
 import {
     Dialog,
@@ -27,6 +30,8 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
+    DialogFooter
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,74 +42,152 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-
-// Mock Data
-const CLASSES = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-const SECTIONS = ['A', 'B', 'C', 'D'];
-const FACULTY = ['Smitha Jones', 'Robert Wilson', 'Priya Sharma', 'David Miller'];
-
-const MOCK_STUDENTS = Array.from({ length: 15 }).map((_, i) => {
-    const status = i % 3 === 0 ? 'Paid' : i % 3 === 1 ? 'Pending' : 'Due';
-    return {
-        id: `STU${2025000 + i}`,
-        name: `Student Name ${i + 1}`,
-        rollNo: `25CS${100 + i}`,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`,
-        dob: '12-05-2008',
-        bloodGroup: 'B+',
-        parentName: 'Parent Name',
-        contact: '+91 98765 43210',
-        address: '123, Main Street, City',
-        fees: {
-            total: 45000,
-            paid: status === 'Paid' ? 45000 : 30000,
-            pending: status === 'Paid' ? 0 : 15000,
-            status: status as 'Paid' | 'Pending' | 'Due',
-            dueDate: status === 'Due' ? '15th Feb 2025' : undefined,
-            structure: [
-                { category: 'Tuition Fee', amount: 25000 },
-                { category: 'Term Fee', amount: 10000 },
-                { category: 'Lab & Activity', amount: 5000 },
-                { category: 'Transport', amount: 5000 },
-            ]
-        },
-        notifications: {
-            status: i % 3 === 0 ? 'completed' : i % 2 === 0 ? 'pending' : 'current',
-            currentStep: i % 3 === 0 ? 4 : i % 2 === 0 ? 1 : 2
-        }
-    };
-});
-
-type TrackingStage = {
-    id: number;
-    title: string;
-    description: string;
-    date?: string;
-    status: 'completed' | 'current' | 'pending';
-};
+import { useAuth } from '@/context/AuthContext';
+import { useInstitution } from '@/context/InstitutionContext';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export function InstitutionFees() {
-    // Navigation State
+    const { user } = useAuth();
+    const { allClasses } = useInstitution();
+
+    // Derived Classes & Sections
+    const uniqueClasses = Array.from(new Set(allClasses.map(c => c.name))).sort();
+
+    // State
     const [isSelectionStarted, setIsSelectionStarted] = useState(false);
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedSection, setSelectedSection] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'tree' | 'students'>('tree');
     const [filterStatus, setFilterStatus] = useState<string>('All');
+    const [availableSections, setAvailableSections] = useState<string[]>([]);
+
+    // Data
+    const [students, setStudents] = useState<any[]>([]);
+    const [feeStructures, setFeeStructures] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
     // Popup State
-    const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(null);
-    const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track'>('none');
+    const [selectedStudent, setSelectedStudent] = useState<any>(null);
+    const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track' | 'create_structure'>('none');
 
-    // Notification Flow State
-    const [feeDialogView, setFeeDialogView] = useState<'summary' | 'notify' | 'tracking'>('summary');
-    const [notificationMessage, setNotificationMessage] = useState('');
-    const [selectedFaculty, setSelectedFaculty] = useState<string>('');
-    const [trackingSteps, setTrackingSteps] = useState<TrackingStage[]>([
-        { id: 1, title: 'Sent to Faculty', description: 'Request sent for approval', status: 'pending' },
-        { id: 2, title: 'Faculty Approved', description: 'Class teacher approved', status: 'pending' },
-        { id: 3, title: 'Sent to Parent', description: 'Notification delivered', status: 'pending' },
-        { id: 4, title: 'Sent to Student', description: 'Student dashboard updated', status: 'pending' },
-    ]);
+    // Create Fee Structure State
+    const [newFeeStructure, setNewFeeStructure] = useState({
+        name: '',
+        amount: '',
+        dueDate: '',
+        description: ''
+    });
+
+    // Effects
+    useEffect(() => {
+        if (selectedClass) {
+            const sections = allClasses
+                .filter(c => c.name === selectedClass)
+                .map(c => c.section)
+                .sort();
+            setAvailableSections(sections);
+        }
+    }, [selectedClass, allClasses]);
+
+    // Fetch Fee Structures
+    useEffect(() => {
+        if (!user?.institutionId) return;
+        const fetchFeeStructures = async () => {
+            const { data } = await supabase.from('fee_structures').select('*').eq('institution_id', user.institutionId);
+            setFeeStructures(data || []);
+        };
+        fetchFeeStructures();
+
+        // Subscribe
+        const channel = supabase.channel('fee_structures_sub')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_structures', filter: `institution_id=eq.${user.institutionId}` }, () => fetchFeeStructures())
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [user?.institutionId]);
+
+
+    const fetchStudents = async () => {
+        if (!selectedClass || !selectedSection || !user?.institutionId) return;
+        setLoading(true);
+        try {
+            // 1. Get Class object
+            const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
+            if (!classObj) return;
+
+            // 2. Fetch Students in Class
+            const { data: studentsData, error: stuError } = await supabase
+                .from('students')
+                .select('*')
+                .eq('institution_id', user.institutionId)
+                .eq('class_id', classObj.id);
+
+            if (stuError) throw stuError;
+
+            // 3. Fetch Student Fees
+            const { data: feesData, error: feesError } = await supabase
+                .from('student_fees')
+                .select(`
+                    *,
+                    fee_structure:fee_structure_id (name)
+                `)
+                .eq('institution_id', user.institutionId)
+                .in('student_id', studentsData.map(s => s.id));
+
+            if (feesError) throw feesError;
+
+            // Merge Data
+            const merged = studentsData.map(s => {
+                const sFees = feesData?.filter(f => f.student_id === s.id) || [];
+
+                // Calculate Totals
+                const totalDue = sFees.reduce((sum, f) => sum + (Number(f.amount_due) || 0), 0);
+                const totalPaid = sFees.reduce((sum, f) => sum + (Number(f.amount_paid) || 0), 0);
+                const pending = totalDue - totalPaid;
+
+                let status = 'Paid';
+                if (pending > 0) status = 'Pending'; // Simplified
+                if (sFees.some(f => f.status === 'overdue')) status = 'Due';
+
+                return {
+                    id: s.id,
+                    name: s.first_name + ' ' + s.last_name,
+                    rollNo: s.roll_number || 'N/A',
+                    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${s.first_name}`,
+                    dob: s.dob,
+                    bloodGroup: s.blood_group,
+                    parentName: s.parent_name || 'Guardian',
+                    contact: s.emergency_contact,
+                    address: s.address,
+                    fees: {
+                        total: totalDue,
+                        paid: totalPaid,
+                        pending: pending,
+                        status: status,
+                        structure: sFees.map(f => ({
+                            category: f.fee_structure?.name || 'Fee',
+                            amount: f.amount_due,
+                            paid: f.amount_paid
+                        }))
+                    }
+                };
+            });
+            setStudents(merged);
+
+        } catch (err: any) {
+            console.error("Error fetching students:", err);
+            toast.error("Failed to load student data");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (viewMode === 'students') {
+            fetchStudents();
+        }
+    }, [viewMode, selectedClass, selectedSection]);
+
 
     // Handlers
     const handleClassSelect = (cls: string) => {
@@ -137,55 +220,32 @@ export function InstitutionFees() {
         setSelectedClass(null);
         setSelectedSection(null);
         setFilterStatus('All');
+        setViewMode('tree');
     };
 
-    const openFeesDialog = (student: typeof MOCK_STUDENTS[0]) => {
-        setSelectedStudent(student);
-        setFeeDialogView('summary');
-        setOpenDialog('fees');
-    };
+    const handleCreateFeeStructure = async () => {
+        if (!user?.institutionId) return;
+        try {
+            const { error } = await supabase.from('fee_structures').insert([{
+                institution_id: user.institutionId,
+                name: newFeeStructure.name,
+                amount: parseFloat(newFeeStructure.amount),
+                due_date: newFeeStructure.dueDate ? new Date(newFeeStructure.dueDate).toISOString() : null,
+                // description: newFeeStructure.description // need column check
+            }]);
 
-    const openBioDialog = (student: typeof MOCK_STUDENTS[0]) => {
-        setSelectedStudent(student);
-        setOpenDialog('bio');
-    };
+            if (error) throw error;
 
-    const openTrackDialog = (student: typeof MOCK_STUDENTS[0]) => {
-        setSelectedStudent(student);
-        // Simulate fetching current status
-        const currentStep = student.notifications.currentStep;
-        const newSteps = trackingSteps.map(step => ({
-            ...step,
-            status: step.id < currentStep ? 'completed' as const : step.id === currentStep ? 'current' as const : 'pending' as const,
-            date: step.id <= currentStep ? new Date().toLocaleDateString() : undefined
-        }));
-        setTrackingSteps(newSteps);
+            toast.success("Fee Structure Created");
+            setOpenDialog('none');
+            setNewFeeStructure({ name: '', amount: '', dueDate: '', description: '' });
 
-        setFeeDialogView('tracking');
-        setOpenDialog('track');
-    }
+            // TODO: Ideally we should also Create 'student_fees' records for all students linked to this structure?
+            // For now, simpler implementation.
 
-    const handleSendNotification = () => {
-        setFeeDialogView('tracking');
-
-        const simulateStep = (index: number) => {
-            setTrackingSteps(prev => {
-                const newSteps = [...prev];
-                if (index > 0) newSteps[index - 1].status = 'completed';
-                if (index < newSteps.length) {
-                    newSteps[index].status = 'current';
-                    newSteps[index].date = new Date().toLocaleTimeString();
-                }
-                return newSteps;
-            });
-        };
-
-        simulateStep(0);
-        setTimeout(() => simulateStep(1), 1500);
-        setTimeout(() => simulateStep(2), 3000);
-        setTimeout(() => {
-            setTrackingSteps(prev => prev.map(s => ({ ...s, status: 'completed', date: new Date().toLocaleTimeString() })));
-        }, 4500);
+        } catch (e: any) {
+            toast.error(e.message);
+        }
     };
 
     return (
@@ -193,9 +253,14 @@ export function InstitutionFees() {
             <PageHeader
                 title="Fee Management"
                 subtitle="Track and manage student fees across all classes"
+                actions={
+                    <Button onClick={() => setOpenDialog('create_structure')} className="flex items-center gap-2">
+                        <Plus className="w-4 h-4" /> Create Fee Structure
+                    </Button>
+                }
             />
 
-            {/* Statistics Section */}
+            {/* Statistics Section - Hardcoded placeholders for now as real aggregation is heavy */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="dashboard-card p-6">
                     <div className="flex items-center gap-3 mb-2">
@@ -204,7 +269,7 @@ export function InstitutionFees() {
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Total Revenue (YTD)</span>
                     </div>
-                    <span className="text-2xl font-bold">₹12.5M</span>
+                    <span className="text-2xl font-bold">₹ --</span>
                 </div>
                 <div className="dashboard-card p-6">
                     <div className="flex items-center gap-3 mb-2">
@@ -213,26 +278,9 @@ export function InstitutionFees() {
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Outstanding</span>
                     </div>
-                    <span className="text-2xl font-bold">₹1.2M</span>
+                    <span className="text-2xl font-bold">₹ --</span>
                 </div>
-                <div className="dashboard-card p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-info/10 rounded-lg text-info">
-                            <IndianRupee className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-medium text-muted-foreground">Scholarships</span>
-                    </div>
-                    <span className="text-2xl font-bold">₹450K</span>
-                </div>
-                <div className="dashboard-card p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-warning/10 rounded-lg text-warning">
-                            <IndianRupee className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-medium text-muted-foreground">Refunds</span>
-                    </div>
-                    <span className="text-2xl font-bold">₹85K</span>
-                </div>
+                {/* ... other stats ... */}
             </div>
 
             {/* Main Interactive Area */}
@@ -249,7 +297,7 @@ export function InstitutionFees() {
                                     <span>Selection</span>
                                     {selectedClass && <>
                                         <ChevronRight className="w-4 h-4" />
-                                        <span className={cn(!selectedSection && "font-semibold text-foreground")}>Class {selectedClass}</span>
+                                        <span className={cn(!selectedSection && "font-semibold text-foreground")}>{selectedClass}</span>
                                     </>}
                                     {selectedSection && <>
                                         <ChevronRight className="w-4 h-4" />
@@ -283,7 +331,7 @@ export function InstitutionFees() {
                                         <div className="p-4 bg-muted/20 text-xs font-semibold uppercase tracking-wider text-muted-foreground sticky top-0 backdrop-blur-sm z-10">Select Class</div>
                                         <ScrollArea className="flex-1">
                                             <div className="p-2 space-y-1">
-                                                {CLASSES.map((cls) => (
+                                                {uniqueClasses.map((cls) => (
                                                     <Button
                                                         key={cls}
                                                         variant={selectedClass === cls ? "secondary" : "ghost"}
@@ -295,7 +343,7 @@ export function InstitutionFees() {
                                                     >
                                                         <span className="flex items-center gap-3">
                                                             <div className={cn("w-2 h-2 rounded-full", selectedClass === cls ? "bg-primary" : "bg-muted-foreground/30")} />
-                                                            Standard {cls}
+                                                            {cls}
                                                         </span>
                                                         {selectedClass === cls && <ChevronRight className="w-4 h-4 ml-2" />}
                                                     </Button>
@@ -309,10 +357,10 @@ export function InstitutionFees() {
                                             <div className="absolute inset-0 flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
                                                 <div className="p-4 bg-muted/20 text-xs font-semibold uppercase tracking-wider text-muted-foreground sticky top-0 backdrop-blur-sm z-10 flex justify-between items-center">
                                                     Section
-                                                    <Badge variant="outline" className="text-[10px] h-5">Class {selectedClass}</Badge>
+                                                    <Badge variant="outline" className="text-[10px] h-5">{selectedClass}</Badge>
                                                 </div>
                                                 <div className="p-4 grid grid-cols-1 gap-2">
-                                                    {SECTIONS.map((sec) => (
+                                                    {availableSections.map((sec) => (
                                                         <Button
                                                             key={sec}
                                                             variant="outline"
@@ -347,7 +395,7 @@ export function InstitutionFees() {
                                                 <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
                                                     <GraduationCap className="w-12 h-12 text-primary" />
                                                 </div>
-                                                <h3 className="text-2xl font-bold mb-2">Class {selectedClass} - Section {selectedSection}</h3>
+                                                <h3 className="text-2xl font-bold mb-2">{selectedClass} - Section {selectedSection}</h3>
                                                 <p className="text-muted-foreground mb-8 max-w-xs">Detailed student list, fee status, and individual actions available.</p>
 
                                                 <Button
@@ -376,7 +424,7 @@ export function InstitutionFees() {
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                             <div>
-                                <h2 className="text-lg font-bold flex items-center gap-2">Students List <Badge variant="outline" className="ml-2">Class {selectedClass}-{selectedSection}</Badge></h2>
+                                <h2 className="text-lg font-bold flex items-center gap-2">Students List <Badge variant="outline" className="ml-2">{selectedClass}-{selectedSection}</Badge></h2>
                             </div>
                             <div className="ml-auto w-[180px]">
                                 <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -394,170 +442,68 @@ export function InstitutionFees() {
                         </div>
 
                         <ScrollArea className="flex-1 p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                                {MOCK_STUDENTS.filter(student => filterStatus === 'All' ? true : student.fees.status === filterStatus).map((student) => (
-                                    <div key={student.id} className="group relative border rounded-xl p-5 hover:shadow-lg hover:border-primary/50 transition-all bg-card/50">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 rounded-full bg-muted overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors">
-                                                    <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                            {loading ? <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary" /></div> :
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                                    {students.filter(student => filterStatus === 'All' ? true : student.fees.status === filterStatus).map((student) => (
+                                        <div key={student.id} className="group relative border rounded-xl p-5 hover:shadow-lg hover:border-primary/50 transition-all bg-card/50">
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-muted overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors">
+                                                        <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold group-hover:text-primary transition-colors">{student.name}</h3>
+                                                        <p className="text-xs text-muted-foreground">Roll: {student.rollNo}</p>
+                                                        {student.fees.status === 'Due' && (
+                                                            <p className="text-xs text-destructive font-medium mt-0.5">Due: {student.fees.dueDate}</p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-semibold group-hover:text-primary transition-colors">{student.name}</h3>
-                                                    <p className="text-xs text-muted-foreground">Roll: {student.rollNo}</p>
-                                                    {student.fees.status === 'Due' && (
-                                                        <p className="text-xs text-destructive font-medium mt-0.5">Due: {student.fees.dueDate}</p>
-                                                    )}
-                                                </div>
+                                                <Badge variant={student.fees.status === 'Paid' ? 'success' : student.fees.status === 'Pending' ? 'warning' : 'destructive'} className="uppercase text-[10px]">{student.fees.status}</Badge>
                                             </div>
-                                            <Badge variant={student.fees.status === 'Paid' ? 'success' : student.fees.status === 'Pending' ? 'warning' : 'destructive'} className="uppercase text-[10px]">{student.fees.status}</Badge>
-                                        </div>
 
-                                        <div className="flex items-center gap-2 mt-4">
-                                            <Button variant="secondary" size="sm" className="flex-1 gap-2 text-xs h-9" onClick={() => openBioDialog(student)}><Info className="w-3.5 h-3.5" /> Details</Button>
-                                            <Button size="sm" className="flex-1 gap-2 text-xs h-9" variant="outline" onClick={() => openTrackDialog(student)}><MapPin className="w-3.5 h-3.5" /> Track</Button>
-                                            <Button size="sm" className="flex-1 gap-2 text-xs h-9" variant="default" onClick={() => openFeesDialog(student)}><FileText className="w-3.5 h-3.5" /> Fees</Button>
+                                            <div className="flex items-center gap-2 mt-4">
+                                                {/* Actions */}
+                                                <Button variant="secondary" size="sm" className="flex-1 gap-2 text-xs h-9" disabled>Details</Button>
+                                                <Button size="sm" className="flex-1 gap-2 text-xs h-9" variant="default" disabled>Fees</Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                    {students.length === 0 && <div className="col-span-3 text-center text-muted-foreground py-10">No students found in this section or no fee data tracked yet.</div>}
+                                </div>
+                            }
                         </ScrollArea>
                     </div>
                 )}
             </div>
 
-            {/* Reused Dialogs */}
-            <Dialog open={openDialog === 'bio'} onOpenChange={(open) => !open && setOpenDialog('none')}>
+            {/* Create Fee Structure Dialog */}
+            <Dialog open={openDialog === 'create_structure'} onOpenChange={(open) => !open && setOpenDialog('none')}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Student Profile</DialogTitle></DialogHeader>
-                    {selectedStudent && (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                                <img src={selectedStudent.avatar} className="w-16 h-16 rounded-full bg-white" alt="Avatar" />
-                                <div><h3 className="font-bold text-lg">{selectedStudent.name}</h3><p className="text-muted-foreground">{selectedStudent.id}</p></div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><Label className="text-muted-foreground">Class</Label><div className="font-medium">{selectedClass} - {selectedSection}</div></div>
-                                <div><Label className="text-muted-foreground">Roll Number</Label><div className="font-medium">{selectedStudent.rollNo}</div></div>
-                                <div><Label className="text-muted-foreground">Date of Birth</Label><div className="font-medium">{selectedStudent.dob}</div></div>
-                                <div><Label className="text-muted-foreground">Blood Group</Label><div className="font-medium">{selectedStudent.bloodGroup}</div></div>
-                                <div><Label className="text-muted-foreground">Parent Name</Label><div className="font-medium">{selectedStudent.parentName}</div></div>
-                                <div><Label className="text-muted-foreground">Contact</Label><div className="font-medium">{selectedStudent.contact}</div></div>
-                                <div className="col-span-2"><Label className="text-muted-foreground">Address</Label><div className="font-medium">{selectedStudent.address}</div></div>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={openDialog === 'fees'} onOpenChange={(open) => { if (!open) { setOpenDialog('none'); setFeeDialogView('summary'); } }}>
-                <DialogContent className="max-w-[500px] h-[600px] flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>{feeDialogView === 'summary' && 'Fee Details'}{feeDialogView === 'notify' && 'Send Payment Reminder'}{feeDialogView === 'tracking' && 'Notification Status'}</DialogTitle>
-                        <DialogDescription>{feeDialogView === 'summary' && `Fee structure for ${selectedStudent?.name}`}{feeDialogView === 'notify' && `Notify ${selectedStudent?.name}'s parents about pending dues`}{feeDialogView === 'tracking' && `Tracking notification delivery`}</DialogDescription>
+                        <DialogTitle>Create Fee Structure</DialogTitle>
+                        <DialogDescription>Add a new fee type (e.g. Annual Tuition)</DialogDescription>
                     </DialogHeader>
-                    {selectedStudent && (
-                        <div className="mt-4 flex-1 overflow-hidden flex flex-col">
-                            {/* Scrollable Container */}
-                            <div className="flex-1 overflow-y-auto pr-2">
-                                {feeDialogView === 'summary' && (
-                                    <div className="space-y-6">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="p-4 rounded-lg bg-muted/40 text-center"><div className="text-xs text-muted-foreground uppercase font-semibold">Total Fees</div><div className="text-xl font-bold mt-1">₹{selectedStudent.fees.total.toLocaleString()}</div></div>
-                                            <div className="p-4 rounded-lg bg-warning/10 text-center text-warning"><div className="text-xs uppercase font-semibold opacity-80">Pending</div><div className="text-xl font-bold mt-1">₹{selectedStudent.fees.pending.toLocaleString()}</div></div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {selectedStudent.fees.structure.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-center text-sm p-3 rounded-lg border bg-card"><span className="text-muted-foreground">{item.category}</span><span className="font-medium">₹{item.amount.toLocaleString()}</span></div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {feeDialogView === 'notify' && (
-                                    <div className="space-y-4">
-                                        <div className="p-3 bg-muted/40 rounded-md text-sm"><span className="font-medium">To: </span> {selectedStudent.parentName} ({selectedStudent.contact})</div>
-
-                                        <div className="space-y-2">
-                                            <Label>Faculty Approver</Label>
-                                            <Select value={selectedFaculty} onValueChange={setSelectedFaculty}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select Faculty" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {FACULTY.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className="space-y-2"><Label>Message</Label><Textarea placeholder="Enter reminder message..." className="min-h-[120px]" value={notificationMessage} onChange={(e) => setNotificationMessage(e.target.value)} /></div>
-                                    </div>
-                                )}
-                                {feeDialogView === 'tracking' && (
-                                    <div className="relative pl-6 py-2 space-y-8">
-                                        <div className="absolute left-[11px] top-6 bottom-6 w-0.5 bg-border" />
-                                        {trackingSteps.map((step) => (
-                                            <div key={step.id} className="relative flex items-start gap-4">
-                                                <div className={cn("relative z-10 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-300", step.status === 'completed' ? "bg-success border-success text-white" : step.status === 'current' ? "bg-primary border-primary text-white" : "bg-background border-muted-foreground/30")}>
-                                                    {step.status === 'completed' && <Check className="w-3 h-3" />}{step.status === 'current' && <div className="w-2 h-2 rounded-full bg-white animate-pulse" />}
-                                                </div>
-                                                <div className="flex-1 pt-0.5">
-                                                    <div className="flex justify-between items-start"><h4 className={cn("font-medium text-sm", step.status === 'pending' && "text-muted-foreground")}>{step.title}</h4>{step.date && <span className="text-xs text-muted-foreground">{step.date}</span>}</div>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <div className="pt-4 mt-auto border-t bg-background">
-                                {feeDialogView === 'summary' && (
-                                    <div className="flex items-center gap-3">
-                                        <Button variant="outline" className="flex-1" onClick={() => setOpenDialog('none')}>Close</Button>
-                                        <Button className="flex-1 gap-2" onClick={() => setFeeDialogView('notify')}><Send className="w-4 h-4" /> Notify</Button>
-                                    </div>
-                                )}
-                                {feeDialogView === 'notify' && (
-                                    <div className="flex items-center gap-3">
-                                        <Button variant="ghost" onClick={() => setFeeDialogView('summary')}>Back</Button>
-                                        <Button className="flex-1" onClick={handleSendNotification} disabled={!notificationMessage || !selectedFaculty}>Send Notification</Button>
-                                    </div>
-                                )}
-                                {feeDialogView === 'tracking' && (
-                                    <Button className="w-full" variant="outline" onClick={() => setOpenDialog('none')}>Close</Button>
-                                )}
-                            </div>
+                    <div className="space-y-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>Name</Label>
+                            <Input value={newFeeStructure.name} onChange={(e) => setNewFeeStructure({ ...newFeeStructure, name: e.target.value })} placeholder="e.g. Tuition Fee 2026" />
                         </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Separate TRACK dialog for direct access */}
-            <Dialog open={openDialog === 'track'} onOpenChange={(open) => !open && setOpenDialog('none')}>
-                <DialogContent className="max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle>Notification Status</DialogTitle>
-                        <DialogDescription>Tracking notification delivery for {selectedStudent?.name}</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-4">
-                        <div className="relative pl-6 py-2 space-y-8">
-                            <div className="absolute left-[11px] top-6 bottom-6 w-0.5 bg-border" />
-                            {trackingSteps.map((step) => (
-                                <div key={step.id} className="relative flex items-start gap-4">
-                                    <div className={cn("relative z-10 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-300", step.status === 'completed' ? "bg-success border-success text-white" : step.status === 'current' ? "bg-primary border-primary text-white" : "bg-background border-muted-foreground/30")}>
-                                        {step.status === 'completed' && <Check className="w-3 h-3" />}{step.status === 'current' && <div className="w-2 h-2 rounded-full bg-white animate-pulse" />}
-                                    </div>
-                                    <div className="flex-1 pt-0.5">
-                                        <div className="flex justify-between items-start"><h4 className={cn("font-medium text-sm", step.status === 'pending' && "text-muted-foreground")}>{step.title}</h4>{step.date && <span className="text-xs text-muted-foreground">{step.date}</span>}</div>
-                                        <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="grid gap-2">
+                            <Label>Amount</Label>
+                            <Input type="number" value={newFeeStructure.amount} onChange={(e) => setNewFeeStructure({ ...newFeeStructure, amount: e.target.value })} placeholder="0.00" />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Due Date</Label>
+                            <Input type="date" value={newFeeStructure.dueDate} onChange={(e) => setNewFeeStructure({ ...newFeeStructure, dueDate: e.target.value })} />
                         </div>
                     </div>
+                    <DialogFooter>
+                        <Button onClick={handleCreateFeeStructure}>Create</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
+
         </InstitutionLayout>
     );
 }

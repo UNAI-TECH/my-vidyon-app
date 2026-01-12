@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -16,79 +16,151 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, X, Eye, Calendar, User, Building, FileText } from 'lucide-react';
+import { Check, X, Eye, Calendar, User, Building, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { format } from 'date-fns';
+import { useInstitution } from '@/context/InstitutionContext';
 
-// Mock Data
-const MOCK_LEAVE_REQUESTS = [
-    {
-        id: 1,
-        staffName: "Dr. Robert Brown",
-        staffId: "FAC-001",
-        dept: "Science",
-        reason: "Medical Emergency",
-        startDate: "2025-01-12",
-        endDate: "2025-01-14",
-        status: "Pending",
-        description: "I have a scheduled surgery and need to take leave for 3 days. I have assigned my classes to Ms. Sarah."
-    },
-    {
-        id: 2,
-        staffName: "Mrs. Jennifer Lee",
-        staffId: "FAC-005",
-        dept: "Mathematics",
-        reason: "Casual Leave",
-        startDate: "2025-01-15",
-        endDate: "2025-01-16",
-        status: "Pending",
-        description: "Attending a family function out of town."
-    },
-    {
-        id: 3,
-        staffName: "Mr. David Miller",
-        staffId: "FAC-012",
-        dept: "Physical Education",
-        reason: "Sick Leave",
-        startDate: "2025-01-10",
-        endDate: "2025-01-11",
-        status: "Approved",
-        description: "Suffering from high fever."
-    },
-    {
-        id: 4,
-        staffName: "Ms. Emily White",
-        staffId: "FAC-008",
-        dept: "English",
-        reason: "Personal",
-        startDate: "2025-01-20",
-        endDate: "2025-01-20",
-        status: "Rejected",
-        description: "Personal errands."
-    }
-];
+// Type definition
+interface LeaveRequest {
+    id: string;
+    staffName: string;
+    staffId: string; // role/id display
+    staff_profile_id: string; // actual UUID
+    dept: string;
+    reason: string;
+    startDate: string; // ISO or YYYY-MM-DD
+    endDate: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+    description: string;
+}
 
 export function InstitutionLeaveApproval() {
-    const [requests, setRequests] = useState(MOCK_LEAVE_REQUESTS);
-    const [selectedRequest, setSelectedRequest] = useState<typeof MOCK_LEAVE_REQUESTS[0] | null>(null);
+    const { user } = useAuth();
+    const { allStaffMembers } = useInstitution();
+    const [requests, setRequests] = useState<LeaveRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
-    const handleAction = (id: number, status: 'Approved' | 'Rejected') => {
-        setRequests(prev => prev.map(req =>
-            req.id === id ? { ...req, status } : req
-        ));
+    // Fetch Leave Requests
+    useEffect(() => {
+        if (!user?.institutionId) return;
 
-        toast.success(`Leave request ${status.toLowerCase()} for ${selectedRequest?.staffName}`, {
-            description: `Notification sent to faculty member.`
-        });
+        const fetchLeaves = async () => {
+            try {
+                // Fetch leaves with staff profile details
+                const { data, error } = await supabase
+                    .from('staff_leaves')
+                    .select(`
+                        id,
+                        staff_id,
+                        leave_type,
+                        start_date,
+                        end_date,
+                        reason,
+                        status,
+                        created_at,
+                        profiles:staff_id (
+                            full_name,
+                            role
+                        )
+                    `)
+                    .eq('institution_id', user.institutionId)
+                    .order('created_at', { ascending: false });
 
-        setIsDetailsOpen(false);
+                if (error) throw error;
+
+                if (data) {
+                    const formattedLeaves: LeaveRequest[] = data.map((item: any) => {
+                        const profile = item.profiles;
+                        const sDate = format(new Date(item.start_date), 'MMM dd, yyyy');
+                        const eDate = format(new Date(item.end_date), 'MMM dd, yyyy');
+
+                        return {
+                            id: item.id,
+                            staffName: profile?.full_name || 'Unknown Staff',
+                            staffId: profile?.role?.toUpperCase() || 'STAFF',
+                            staff_profile_id: item.staff_id,
+                            dept: 'General', // No dept in staff_leaves, maybe infer from context context?
+                            reason: item.leave_type, // Mapping leave_type to reason (or reason column?)
+                            // Wait, UI has 'reason' and 'description'.
+                            // DB has 'leave_type' and 'reason' (which matches UI description).
+                            // UI 'reason' column usually maps to leave_type (Medical, Personal)
+
+                            startDate: sDate,
+                            endDate: eDate,
+                            status: item.status.charAt(0).toUpperCase() + item.status.slice(1) as any,
+                            description: item.reason || 'No description provided.'
+                        };
+                    });
+                    setRequests(formattedLeaves);
+                }
+            } catch (err: any) {
+                console.error("Error fetching leaves:", err);
+                toast.error("Failed to load leave requests");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLeaves();
+
+        // Subscription
+        const channel = supabase
+            .channel('staff_leaves_changes')
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'staff_leaves', filter: `institution_id=eq.${user.institutionId}` },
+                () => {
+                    fetchLeaves();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.institutionId]);
+
+
+    const handleAction = async (id: string, status: 'Approved' | 'Rejected') => {
+        if (!user?.institutionId) return;
+        setProcessingId(id);
+
+        try {
+            const { error } = await supabase
+                .from('staff_leaves')
+                .update({
+                    status: status.toLowerCase(),
+                    approved_by: user.id // Assuming user.id is the approver (admin)
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            toast.success(`Leave request ${status.toLowerCase()}`);
+
+            // Optimistic update (though subscription will catch it)
+            setRequests(prev => prev.map(req =>
+                req.id === id ? { ...req, status } : req
+            ));
+
+            setIsDetailsOpen(false);
+        } catch (err: any) {
+            console.error("Error updating leave:", err);
+            toast.error("Failed to update leave request");
+        } finally {
+            setProcessingId(null);
+        }
     };
 
-    const openDetails = (request: typeof MOCK_LEAVE_REQUESTS[0]) => {
+    const openDetails = (request: LeaveRequest) => {
         setSelectedRequest(request);
         setIsDetailsOpen(true);
     };
@@ -109,49 +181,54 @@ export function InstitutionLeaveApproval() {
             />
 
             <Card className="p-6">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Staff Name</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead>Leave Dates</TableHead>
-                            <TableHead>Reason</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {requests.map((request) => (
-                            <TableRow key={request.id}>
-                                <TableCell className="font-medium">
-                                    <div className="flex flex-col">
-                                        <span>{request.staffName}</span>
-                                        <span className="text-xs text-muted-foreground">{request.staffId}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{request.dept}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <Calendar className="w-3 h-3 text-muted-foreground" />
-                                        {request.startDate} <span className="text-muted-foreground">to</span> {request.endDate}
-                                    </div>
-                                </TableCell>
-                                <TableCell>{request.reason}</TableCell>
-                                <TableCell>{getStatusBadge(request.status)}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => openDetails(request)}
-                                        className="gap-2"
-                                    >
-                                        <Eye className="w-4 h-4" /> View Details
-                                    </Button>
-                                </TableCell>
+                {loading ? (
+                    <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+                ) : requests.length === 0 ? (
+                    <div className="text-center p-8 text-muted-foreground">No leave requests found.</div>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Staff Name</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Leave Dates</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {requests.map((request) => (
+                                <TableRow key={request.id}>
+                                    <TableCell className="font-medium">
+                                        <div className="flex flex-col">
+                                            <span>{request.staffName}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{request.staffId}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <Calendar className="w-3 h-3 text-muted-foreground" />
+                                            {request.startDate} <span className="text-muted-foreground">to</span> {request.endDate}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{request.reason}</TableCell>
+                                    <TableCell>{getStatusBadge(request.status)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => openDetails(request)}
+                                            className="gap-2"
+                                        >
+                                            <Eye className="w-4 h-4" /> View Details
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
             </Card>
 
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
@@ -175,11 +252,7 @@ export function InstitutionLeaveApproval() {
 
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div className="space-y-1">
-                                    <span className="text-muted-foreground flex items-center gap-1"><Building className="w-3 h-3" /> Department</span>
-                                    <p className="font-medium">{selectedRequest.dept}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-muted-foreground flex items-center gap-1"><FileText className="w-3 h-3" /> Reason</span>
+                                    <span className="text-muted-foreground flex items-center gap-1"><FileText className="w-3 h-3" /> Type</span>
                                     <p className="font-medium">{selectedRequest.reason}</p>
                                 </div>
                                 <div className="col-span-2 space-y-1">
@@ -187,7 +260,7 @@ export function InstitutionLeaveApproval() {
                                     <p className="font-medium">{selectedRequest.startDate} — {selectedRequest.endDate}</p>
                                 </div>
                                 <div className="col-span-2 space-y-1 bg-muted/20 p-3 rounded-md">
-                                    <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Description</span>
+                                    <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Description / Reason</span>
                                     <p className="text-sm mt-1">{selectedRequest.description}</p>
                                 </div>
                             </div>
@@ -197,15 +270,19 @@ export function InstitutionLeaveApproval() {
                                     <Button
                                         className="flex-1 bg-success hover:bg-success/90 text-white"
                                         onClick={() => handleAction(selectedRequest.id, 'Approved')}
+                                        disabled={!!processingId}
                                     >
-                                        <Check className="w-4 h-4 mr-2" /> Approve
+                                        {processingId === selectedRequest.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                                        Approve
                                     </Button>
                                     <Button
                                         variant="destructive"
                                         className="flex-1"
                                         onClick={() => handleAction(selectedRequest.id, 'Rejected')}
+                                        disabled={!!processingId}
                                     >
-                                        <X className="w-4 h-4 mr-2" /> Deny
+                                        {processingId === selectedRequest.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4 mr-2" />}
+                                        Deny
                                     </Button>
                                 </div>
                             )}

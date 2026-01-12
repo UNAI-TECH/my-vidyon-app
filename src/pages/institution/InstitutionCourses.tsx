@@ -24,50 +24,74 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-
-const initialCourses = [
-    { id: '1', name: 'Mathematics', code: 'MATH10', department: 'Mathematics', instructor: 'Mr. R. Sharma', students: 45 },
-    { id: '2', name: 'Physics', code: 'PHY12', department: 'Science', instructor: 'Mrs. S. Verma', students: 38 },
-    { id: '3', name: 'English Literature', code: 'ENG09', department: 'English', instructor: 'Ms. A. Davis', students: 52 },
-    { id: '4', name: 'Social Studies', code: 'SOC10', department: 'Social Studies', instructor: 'Mr. K. Singh', students: 40 },
-    { id: '5', name: 'Chemistry', code: 'CHEM12', department: 'Science', instructor: 'Dr. M. Gupta', students: 30 },
-];
+import { useInstitution } from '@/context/InstitutionContext';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export function InstitutionCourses() {
-    const [courses, setCourses] = useState(initialCourses);
+    const { subjects } = useInstitution(); // Contains assignments info
+    const { user } = useAuth();
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newCourse, setNewCourse] = useState({
         name: '',
         code: '',
         department: '',
-        instructor: ''
+        instructor: '' // Unused for now in creation, as verifying instructor assignment is separate
     });
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const handleAddCourse = () => {
+    const handleAddCourse = async () => {
+        if (!user?.institutionId) return;
         setIsSubmitting(true);
-        setTimeout(() => {
-            const course = {
-                id: (courses.length + 1).toString(),
-                name: newCourse.name,
-                code: newCourse.code,
-                department: newCourse.department,
-                instructor: newCourse.instructor,
-                students: 0
-            };
-            setCourses([...courses, course]);
-            setIsSubmitting(false);
+        try {
+            const { error } = await supabase
+                .from('subjects')
+                .insert([{
+                    institution_id: user.institutionId,
+                    name: newCourse.name,
+                    code: newCourse.code,
+                    department: newCourse.department
+                }]);
+
+            if (error) throw error;
+
+            toast.success("Course added successfully");
             setIsAddDialogOpen(false);
             setNewCourse({ name: '', code: '', department: '', instructor: '' });
-            toast.success("Course added successfully");
-        }, 1000);
+            // Context realtime subscription will auto-update the list
+        } catch (error: any) {
+            console.error('Error adding course:', error);
+            toast.error(error.message || 'Failed to add course');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
+    // Filter subjects based on search
+    const filteredSubjects = subjects.filter(s =>
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.code?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     const columns = [
+        { key: 'code', header: 'Code' },
         { key: 'name', header: 'Course Name' },
         { key: 'department', header: 'Subject Group' },
-        { key: 'instructor', header: 'Lead Instructor' },
-        { key: 'students', header: 'Enrolled' },
+        {
+            key: 'instructor',
+            header: 'Assigned Staff',
+            render: (item: any) => {
+                // item is a Subject from context which has .staff array
+                if (!item.staff || item.staff.length === 0) return <span className="text-muted-foreground text-xs">Unassigned</span>;
+                // Unique staff names
+                const uniqueNames = Array.from(new Set(item.staff.map((s: any) => s.name)));
+                if (uniqueNames.length > 2) {
+                    return <span>{uniqueNames.slice(0, 2).join(', ')} +{uniqueNames.length - 2} more</span>;
+                }
+                return <span>{uniqueNames.join(', ')}</span>;
+            }
+        },
         {
             key: 'actions',
             header: 'Actions',
@@ -76,6 +100,14 @@ export function InstitutionCourses() {
             ),
         },
     ];
+
+    // Transform context data for table
+    const tableData = filteredSubjects.map(s => ({
+        ...s,
+        // Ensure default values for missing fields to avoid table errors
+        code: s.code || '-',
+        department: s.department || 'General'
+    }));
 
     return (
         <InstitutionLayout>
@@ -89,6 +121,8 @@ export function InstitutionCourses() {
                             <input
                                 type="text"
                                 placeholder="Search courses..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="input-field pl-10 w-64"
                             />
                         </div>
@@ -107,7 +141,7 @@ export function InstitutionCourses() {
                                 <DialogHeader>
                                     <DialogTitle>Add New Course</DialogTitle>
                                     <DialogDescription>
-                                        Create a new course in the catalog. All fields are required.
+                                        Create a new course/subject in the catalog.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
@@ -118,7 +152,7 @@ export function InstitutionCourses() {
                                             value={newCourse.code}
                                             onChange={(e) => setNewCourse({ ...newCourse, code: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="e.g. CS101"
+                                            placeholder="e.g. MATH10"
                                         />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
@@ -128,7 +162,7 @@ export function InstitutionCourses() {
                                             value={newCourse.name}
                                             onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
                                             className="col-span-3"
-                                            placeholder="e.g. Intro to Computer Science"
+                                            placeholder="e.g. Mathematics"
                                         />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
@@ -145,26 +179,18 @@ export function InstitutionCourses() {
                                                     <SelectItem value="Mathematics">Mathematics</SelectItem>
                                                     <SelectItem value="Science">Science (Phy/Chem/Bio)</SelectItem>
                                                     <SelectItem value="English">English</SelectItem>
-                                                    <SelectItem value="Hindi">Hindi</SelectItem>
+                                                    <SelectItem value="Languages">Languages</SelectItem>
                                                     <SelectItem value="Social Studies">Social Studies</SelectItem>
                                                     <SelectItem value="Computer Science">Computer Science</SelectItem>
+                                                    <SelectItem value="Arts">Arts</SelectItem>
+                                                    <SelectItem value="Physical Education">Physical Education</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="instructor" className="text-right">Instructor</Label>
-                                        <Input
-                                            id="instructor"
-                                            value={newCourse.instructor}
-                                            onChange={(e) => setNewCourse({ ...newCourse, instructor: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="e.g. Dr. Smith"
-                                        />
-                                    </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button type="submit" onClick={handleAddCourse} disabled={!newCourse.code || !newCourse.name || isSubmitting}>
+                                    <Button type="submit" onClick={handleAddCourse} disabled={!newCourse.name || isSubmitting}>
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Save Course
                                     </Button>
@@ -176,7 +202,7 @@ export function InstitutionCourses() {
             />
 
             <div className="dashboard-card">
-                <DataTable columns={columns} data={courses} />
+                <DataTable columns={columns} data={tableData} />
             </div>
         </InstitutionLayout>
     );
