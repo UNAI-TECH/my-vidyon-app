@@ -13,8 +13,8 @@ import { supabase } from '@/lib/supabase';
 import {
   Users,
   BookOpen,
-  ClipboardCheck,
-  FileText,
+  FileCheck,
+  UserCheck,
   Plus,
   Calendar,
 } from 'lucide-react';
@@ -156,14 +156,14 @@ export function FacultyDashboard() {
         <StatCard
           title="Pending Reviews"
           value={pendingSubmissions.length}
-          icon={FileText}
+          icon={FileCheck}
           iconColor="text-warning"
           change="4 due today"
         />
         <StatCard
           title="Avg. Attendance"
           value="87%"
-          icon={ClipboardCheck}
+          icon={UserCheck}
           iconColor="text-success"
           change="+2% this week"
           changeType="positive"

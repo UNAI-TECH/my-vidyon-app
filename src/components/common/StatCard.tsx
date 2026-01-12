@@ -29,7 +29,7 @@ export function StatCard({
         </div>
         <div className={cn(
           'p-2 sm:p-2.5 rounded-lg flex-shrink-0',
-          iconColor.replace('text-', 'bg-').replace('primary', 'primary/10')
+          iconColor.replace('text-', 'bg-') + '/10'
         )}>
           <Icon className={cn('w-4 h-4 sm:w-5 sm:h-5', iconColor)} />
         </div>
