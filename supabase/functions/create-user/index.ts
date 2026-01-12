@@ -30,6 +30,21 @@ Deno.serve(async (req) => {
 
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
+        // MANUAL TOKEN VERIFICATION
+        // We will deploy with --no-verify-jwt to bypass Gateway 401 issues,
+        // so we must verify the token here for security.
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) {
+            throw new Error('Missing Authorization header');
+        }
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: requestUser }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+        if (userError || !requestUser) {
+            console.error('Token verification failed:', userError);
+            return new Response(JSON.stringify({ error: 'Unauthorized', details: userError?.message }), { status: 401, headers: corsHeaders });
+        }
+
         // Determine password: use provided password or default to institution_id
         // Helper to normalize role
         const normalizeRole = (r: string) => {
@@ -70,7 +85,7 @@ Deno.serve(async (req) => {
                 id: userId,
                 email: email,
                 full_name: full_name,
-                role: role,
+                role: finalRole,
                 institution_id: institution_id,
                 updated_at: new Date().toISOString()
             });
@@ -95,7 +110,10 @@ Deno.serve(async (req) => {
                     class_name: class_name,
                     section: section
                 });
-            if (studentError) console.error("Error creating student record:", studentError);
+            if (studentError) {
+                console.error("Error creating student record:", studentError);
+                throw new Error(`Failed to create student: ${studentError.message}`);
+            }
         } else if (finalRole === 'parent') {
             const { data: parentData, error: parentError } = await supabaseAdmin
                 .from('parents')
@@ -132,7 +150,10 @@ Deno.serve(async (req) => {
                 }, {
                     onConflict: 'profile_id'
                 });
-            if (staffError) console.error("Error creating staff record:", staffError);
+            if (staffError) {
+                console.error("Error creating staff record:", staffError);
+                throw new Error(`Failed to create staff: ${staffError.message}`);
+            }
 
             // SPECIAL CASE: Link Institution Admin Email
             if (role === 'institution') {
@@ -153,8 +174,20 @@ Deno.serve(async (req) => {
         )
 
     } catch (error: any) {
+        console.error("Full error in create-user:", error);
+        console.error("Error details:", {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+        });
+
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({
+                error: error.message || "Unknown error occurred",
+                details: error.details || null,
+                hint: error.hint || null
+            }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 400

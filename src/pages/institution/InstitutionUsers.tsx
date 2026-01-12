@@ -52,7 +52,9 @@ export function InstitutionUsers() {
             if (error) throw error;
             return data || [];
         },
-        enabled: !!user?.institutionId
+        enabled: !!user?.institutionId,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true
     });
 
     const { data: institutionStaff = [], isLoading: isStaffLoading } = useQuery({
@@ -63,13 +65,16 @@ export function InstitutionUsers() {
                 .from('profiles')
                 .select('*')
                 .eq('institution_id', user.institutionId)
-                .in('role', ['faculty', 'admin', 'teacher', 'support'])
                 .order('full_name');
 
             if (error) throw error;
-            return data || [];
+            // Client-side filtering to avoid 400 errors if enum values don't match
+            const targetRoles = ['faculty', 'admin', 'teacher', 'support'];
+            return (data || []).filter((p: any) => targetRoles.includes(p.role));
         },
-        enabled: !!user?.institutionId
+        enabled: !!user?.institutionId,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true
     });
 
     const { data: institutionParents = [], isLoading: isParentsLoading } = useQuery({
@@ -84,7 +89,9 @@ export function InstitutionUsers() {
             if (error) throw error;
             return data || [];
         },
-        enabled: !!user?.institutionId
+        enabled: !!user?.institutionId,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true
     });
 
     // --- REALTIME SUBSCRIPTION ---

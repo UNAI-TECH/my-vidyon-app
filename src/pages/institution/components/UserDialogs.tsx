@@ -66,7 +66,16 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
 
         setIsSubmitting(true);
         try {
-            const { error } = await supabase.functions.invoke('create-user', {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No active session found. Please log in again.');
+
+            // DEBUG: Log the token explicitly to verify it exists and is attached
+            console.log('Using Access Token:', session.access_token ? (session.access_token.substring(0, 10) + '...') : 'NULL');
+
+            const { data: responseData, error } = await supabase.functions.invoke('create-user', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
                 body: {
                     email: data.email,
                     password: data.password,
@@ -76,6 +85,7 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     parent_email: data.parentEmail,
                     parent_phone: data.parentPhone,
                     parent_name: data.parentName,
+                    register_number: data.registerNumber,
                     class_name: data.className,
                     section: data.section
                 }
@@ -89,7 +99,14 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
             onOpenChange(false);
             setData({ name: '', registerNumber: '', className: '', section: '', dob: '', gender: '', parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '' });
         } catch (error: any) {
-            toast.error(error.message || 'Failed to add student');
+            const errorMsg = error.message || 'Failed to add student';
+            const errorDetails = error.details || error.hint ? ` (${error.details || error.hint})` : '';
+            toast.error(errorMsg + errorDetails);
+            console.error('Student creation error:', error);
+
+            if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
+                toast.error('Session expired or unauthorized. Please Log Out and Log In again.');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -106,11 +123,11 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     {/* Inputs with local state 'data' */}
                     <div className="space-y-2">
                         <Label>Student Name *</Label>
-                        <Input value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} />
+                        <Input value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} placeholder="e.g. John Doe" />
                     </div>
                     <div className="space-y-2">
                         <Label>Register Number</Label>
-                        <Input value={data.registerNumber} onChange={(e) => setData({ ...data, registerNumber: e.target.value })} />
+                        <Input value={data.registerNumber} onChange={(e) => setData({ ...data, registerNumber: e.target.value })} placeholder="e.g. REG-2024-001" />
                     </div>
                     <div className="space-y-2">
                         <Label>Class</Label>
@@ -151,27 +168,27 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     </div>
                     <div className="space-y-2">
                         <Label>Parent Name</Label>
-                        <Input value={data.parentName} onChange={(e) => setData({ ...data, parentName: e.target.value })} />
+                        <Input value={data.parentName} onChange={(e) => setData({ ...data, parentName: e.target.value })} placeholder="e.g. Robert Doe" />
                     </div>
                     <div className="space-y-2">
                         <Label>Parent Email *</Label>
-                        <Input type="email" value={data.parentEmail} onChange={(e) => setData({ ...data, parentEmail: e.target.value })} />
+                        <Input type="email" value={data.parentEmail} onChange={(e) => setData({ ...data, parentEmail: e.target.value })} placeholder="valid@email.com" />
                     </div>
                     <div className="space-y-2">
                         <Label>Parent Phone *</Label>
-                        <Input type="tel" value={data.parentPhone} onChange={(e) => setData({ ...data, parentPhone: e.target.value })} />
+                        <Input type="tel" value={data.parentPhone} onChange={(e) => setData({ ...data, parentPhone: e.target.value })} placeholder="e.g. 9876543210 (10 digits)" />
                     </div>
                     <div className="space-y-2">
                         <Label>Student Email *</Label>
-                        <Input type="email" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} />
+                        <Input type="email" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} placeholder="student@school.com" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label>Address</Label>
-                        <Input value={data.address} onChange={(e) => setData({ ...data, address: e.target.value })} />
+                        <Input value={data.address} onChange={(e) => setData({ ...data, address: e.target.value })} placeholder="Full residential address" />
                     </div>
                     <div className="space-y-2">
                         <Label>Password *</Label>
-                        <Input type="password" value={data.password} onChange={(e) => setData({ ...data, password: e.target.value })} />
+                        <Input type="password" value={data.password} onChange={(e) => setData({ ...data, password: e.target.value })} placeholder="Min 6 characters" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -198,7 +215,13 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
         }
         setIsSubmitting(true);
         try {
-            const { error } = await supabase.functions.invoke('create-user', {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No active session found. Please log in again.');
+
+            const { data: responseData, error } = await supabase.functions.invoke('create-user', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
                 body: {
                     email: data.email,
                     password: data.password,
@@ -226,12 +249,12 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
             <DialogContent className="max-w-xl">
                 <DialogHeader><DialogTitle>Add Staff</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                    <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Staff ID *</Label><Input value={data.staffId} onChange={e => setData({ ...data, staffId: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder="e.g. Sarah Smith" /></div>
+                    <div className="space-y-2"><Label>Staff ID *</Label><Input value={data.staffId} onChange={e => setData({ ...data, staffId: e.target.value })} placeholder="e.g. STF-2024-005" /></div>
                     <div className="space-y-2">
                         <Label>Role</Label>
                         <Select value={data.role} onValueChange={v => setData({ ...data, role: v })}>
-                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="teacher">Teacher</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
@@ -239,10 +262,10 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} placeholder="staff@institution.com" /></div>
+                    <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} placeholder="e.g. 9876543210" /></div>
                     <div className="space-y-2"><Label>DOB</Label><Input type="date" value={data.dob} onChange={e => setData({ ...data, dob: e.target.value })} /></div>
-                    <div className="space-y-2 md:col-span-2"><Label>Password *</Label><Input type="password" value={data.password} onChange={e => setData({ ...data, password: e.target.value })} /></div>
+                    <div className="space-y-2 md:col-span-2"><Label>Password *</Label><Input type="password" value={data.password} onChange={e => setData({ ...data, password: e.target.value })} placeholder="Min 6 characters" /></div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -258,6 +281,14 @@ function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, student
     const [data, setData] = useState({ name: '', email: '', phone: '', password: '', studentIds: [] as string[] });
     const queryClient = useQueryClient();
 
+    // Filter students by matching parent email
+    const filteredStudents = useMemo(() => {
+        if (!data.email) return students;
+        return students.filter((s: any) =>
+            s.parent_email?.toLowerCase() === data.email.toLowerCase()
+        );
+    }, [students, data.email]);
+
     const handleSubmit = async () => {
         if (!data.name || !data.email || !data.phone || !data.password || data.studentIds.length === 0) {
             toast.error('Please fill all mandatory fields');
@@ -265,7 +296,13 @@ function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, student
         }
         setIsSubmitting(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No active session found. Please log in again.');
+
             const { data: responseData, error } = await supabase.functions.invoke('create-user', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
                 body: {
                     email: data.email,
                     password: data.password,
@@ -305,24 +342,30 @@ function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, student
             <DialogContent className="max-w-xl">
                 <DialogHeader><DialogTitle>Add Parent</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                    <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Phone *</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Password *</Label><Input type="password" value={data.password} onChange={e => setData({ ...data, password: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder="e.g. Robert Doe" /></div>
+                    <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} placeholder="valid@email.com" /></div>
+                    <div className="space-y-2"><Label>Phone *</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} placeholder="e.g. 9876543210 (10 digits)" /></div>
+                    <div className="space-y-2"><Label>Password *</Label><Input type="password" value={data.password} onChange={e => setData({ ...data, password: e.target.value })} placeholder="Min 6 characters" /></div>
                     <div className="space-y-2 md:col-span-2">
-                        <Label>Children *</Label>
+                        <Label>Children * {data.email && `(matching ${data.email})`}</Label>
                         <div className="grid grid-cols-1 gap-2 border rounded-lg p-3 max-h-40 overflow-y-auto bg-card">
-                            {students.map((child: any) => (
-                                <div key={child.id} className="flex items-center gap-2">
-                                    <input type="checkbox" checked={data.studentIds.includes(child.id)}
-                                        onChange={(e) => {
-                                            const newIds = e.target.checked ? [...data.studentIds, child.id] : data.studentIds.filter(id => id !== child.id);
-                                            setData({ ...data, studentIds: newIds });
-                                        }}
-                                    />
-                                    <span className="text-sm">{child.name}</span>
-                                </div>
-                            ))}
+                            {filteredStudents.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-2">
+                                    {data.email ? 'No students found with this parent email' : 'Enter parent email to see matching students'}
+                                </p>
+                            ) : (
+                                filteredStudents.map((child: any) => (
+                                    <div key={child.id} className="flex items-center gap-2">
+                                        <input type="checkbox" checked={data.studentIds.includes(child.id)}
+                                            onChange={(e) => {
+                                                const newIds = e.target.checked ? [...data.studentIds, child.id] : data.studentIds.filter(id => id !== child.id);
+                                                setData({ ...data, studentIds: newIds });
+                                            }}
+                                        />
+                                        <span className="text-sm">{child.name}</span>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
