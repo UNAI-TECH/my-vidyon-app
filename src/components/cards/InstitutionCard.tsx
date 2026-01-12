@@ -1,4 +1,4 @@
-import { Building2, Users, GraduationCap, MapPin, Layers, Eye, Edit, UserCog, BarChart3, Trash2 } from 'lucide-react';
+import { Building2, Users, GraduationCap, MapPin, Layers, Eye, Edit, BarChart3, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 
@@ -16,7 +16,6 @@ interface InstitutionCardProps {
   sections?: number;
   onClick?: () => void;
   onEdit?: () => void;
-  onUsers?: () => void;
   onAnalytics?: () => void;
   onDelete?: () => void;
 }
@@ -35,7 +34,6 @@ export function InstitutionCard({
   logoUrl,
   onClick,
   onEdit,
-  onUsers,
   onAnalytics,
   onDelete,
 }: InstitutionCardProps) {
@@ -52,8 +50,6 @@ export function InstitutionCard({
       onClick();
     } else if (action === 'edit' && onEdit) {
       onEdit();
-    } else if (action === 'users' && onUsers) {
-      onUsers();
     } else if (action === 'analytics' && onAnalytics) {
       onAnalytics();
     }
@@ -142,15 +138,6 @@ export function InstitutionCard({
         >
           <Edit className="w-3 h-3 mr-1" />
           Edit
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-[10px] sm:text-xs min-h-[36px] sm:min-h-[32px]"
-          onClick={(e) => handleQuickAction(e, 'users')}
-        >
-          <UserCog className="w-3 h-3 mr-1" />
-          Users
         </Button>
         <Button
           variant="outline"
