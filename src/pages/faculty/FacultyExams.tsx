@@ -30,55 +30,56 @@ export function FacultyExams() {
     // Dropdown data
     const [availableClasses, setAvailableClasses] = useState<any[]>([]);
     const [availableSubjects, setAvailableSubjects] = useState<any[]>([]);
+    const [availableSections, setAvailableSections] = useState<string[]>([]); // New state for sections
 
     const [newMaterial, setNewMaterial] = useState({
         title: '',
         subjectId: '',
         classId: '',
+        section: '', // New field
         date: new Date().toISOString().split('T')[0],
         file: null as File | null
     });
 
     useEffect(() => {
-        if (user?.institution_id) {
+        if (user?.institutionId) {
             fetchData();
             fetchDropdownData();
         }
-    }, [user?.institution_id]);
+    }, [user?.institutionId]);
 
     const fetchDropdownData = async () => {
         try {
-            // Fetch Classes (flattened from groups if necessary, or just classes table)
-            const { data: classesData } = await supabase
-                .from('classes')
-                .select('id, name, group_id')
-                .eq('group_id', (await supabase.from('groups').select('id').eq('institution_id', user?.institution_id)).data?.map(g => g.id));
-            // This complex query might fail if permissions aren't perfect.
-            // Simpler: Fetch classes linked to institution via groups?
-            // Or assuming RLS allows viewing classes.
-
-            // Better: Fetch all classes for the institution.
-            // Since classes table doesn't have institution_id directly (it's on group), we join.
+            // Fetch Classes with Sections
             const { data: groupsWithClasses, error: groupError } = await supabase
                 .from('groups')
-                .select('classes(id, name)')
-                .eq('institution_id', user?.institution_id);
+                .select('classes(id, name, sections)') // Fetch sections array
+                .eq('institution_id', user?.institutionId);
 
             if (!groupError && groupsWithClasses) {
                 const flatClasses = groupsWithClasses.flatMap(g => g.classes);
                 setAvailableClasses(flatClasses);
             }
 
-            // Fetch Subjects
             const { data: subjectsData } = await supabase
                 .from('subjects')
                 .select('id, name')
-                .eq('institution_id', user?.institution_id);
+                .eq('institution_id', user?.institutionId);
 
             if (subjectsData) setAvailableSubjects(subjectsData);
 
         } catch (error) {
             console.error('Error fetching dropdowns:', error);
+        }
+    };
+
+    const handleClassChange = (classId: string) => {
+        setNewMaterial({ ...newMaterial, classId, section: '' });
+        const selectedClass = availableClasses.find(c => c.id === classId);
+        if (selectedClass && selectedClass.sections) {
+            setAvailableSections(selectedClass.sections);
+        } else {
+            setAvailableSections([]);
         }
     };
 
@@ -88,7 +89,7 @@ export function FacultyExams() {
             const { data, error } = await supabase
                 .from('learning_resources')
                 .select('*, subjects(name), classes(name)')
-                .eq('institution_id', user?.institution_id)
+                .eq('institution_id', user?.institutionId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -108,7 +109,7 @@ export function FacultyExams() {
     };
 
     const handleAddMaterial = async () => {
-        if (!newMaterial.title || !newMaterial.subjectId || !newMaterial.classId || !newMaterial.file || !user?.institution_id) {
+        if (!newMaterial.title || !newMaterial.subjectId || !newMaterial.classId || !newMaterial.file || !user?.institutionId) {
             toast.error('Please fill all fields and select a file');
             return;
         }
@@ -118,7 +119,7 @@ export function FacultyExams() {
             const file = newMaterial.file;
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const filePath = `${user.institution_id}/${fileName}`;
+            const filePath = `${user.institutionId}/${fileName}`;
 
             // 1. Upload File
             const { error: uploadError } = await supabase.storage
@@ -137,10 +138,11 @@ export function FacultyExams() {
                 .from('learning_resources')
                 .insert({
                     title: newMaterial.title,
-                    institution_id: user.institution_id,
+                    institution_id: user.institutionId,
                     uploaded_by: user.id,
                     subject_id: newMaterial.subjectId,
                     class_id: newMaterial.classId,
+                    section: newMaterial.section || null, // Insert section
                     resource_type: materialType === 'exam' ? 'question_paper' : 'study_material',
                     file_url: publicUrl,
                     description: '' // Optional
@@ -150,7 +152,7 @@ export function FacultyExams() {
 
             toast.success('Material uploaded successfully');
             setIsDialogOpen(false);
-            setNewMaterial({ title: '', subjectId: '', classId: '', date: '', file: null });
+            setNewMaterial({ title: '', subjectId: '', classId: '', section: '', date: '', file: null });
             fetchData(); // Refresh list
 
         } catch (error: any) {
@@ -307,13 +309,32 @@ export function FacultyExams() {
                                 <div className="grid grid-cols-4 items-center gap-4">
                                     <Label htmlFor="class" className="text-right">Class</Label>
                                     <div className="col-span-3">
-                                        <Select onValueChange={(val) => setNewMaterial({ ...newMaterial, classId: val })}>
+                                        <Select onValueChange={handleClassChange}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select Class" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {availableClasses.map(cls => (
                                                     <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="section" className="text-right">Section</Label>
+                                    <div className="col-span-3">
+                                        <Select
+                                            value={newMaterial.section}
+                                            onValueChange={(val) => setNewMaterial({ ...newMaterial, section: val })}
+                                            disabled={!newMaterial.classId || availableSections.length === 0}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Section (Optional)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableSections.map(sec => (
+                                                    <SelectItem key={sec} value={sec}>{sec}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>

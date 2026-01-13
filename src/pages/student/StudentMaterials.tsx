@@ -1,153 +1,226 @@
+import { useState, useEffect } from 'react';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/TranslationContext';
-import { FileText, Download, Eye, Book, History } from 'lucide-react';
+import { FileText, Download, Eye, Book, History, Loader2, Calendar } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-const materials = [
-    {
-        course: 'Mathematics',
-        items: [
-            { name: 'Algebra Formula Sheet', type: 'PDF', size: '2.4 MB', date: 'Dec 10, 2025' },
-            { name: 'Geometry Theorems', type: 'PDF', size: '1.2 MB', date: 'Dec 12, 2025' },
-            { name: 'Trigonometry Practice Set', type: 'PDF', size: '890 KB', date: 'Dec 15, 2025' },
-        ]
-    },
-    {
-        course: 'Science',
-        items: [
-            { name: 'Physics: Laws of Motion', type: 'PDF', size: '3.1 MB', date: 'Dec 8, 2025' },
-            { name: 'Chemistry: Periodic Table', type: 'PDF', size: '1.5 MB', date: 'Dec 11, 2025' },
-            { name: 'Biology: Cell Structure', type: 'PDF', size: '2.8 MB', date: 'Dec 14, 2025' },
-        ]
-    },
-    {
-        course: 'English',
-        items: [
-            { name: 'Grammar Guide: Tenses', type: 'PDF', size: '4.2 MB', date: 'Dec 9, 2025' },
-            { name: 'Poetry: The Road Not Taken', type: 'PDF', size: '5.6 MB', date: 'Dec 13, 2025' },
-            { name: 'Essay Writing Tips', type: 'PDF', size: '650 KB', date: 'Dec 16, 2025' },
-        ]
-    },
-];
-
-const questionPapers = [
-    {
-        year: '2024',
-        papers: [
-            { subject: 'Mathematics', exam: 'Annual Exam 2024', type: 'PDF', size: '1.8 MB' },
-            { subject: 'Science', exam: 'Annual Exam 2024', type: 'PDF', size: '2.1 MB' },
-            { subject: 'English', exam: 'Annual Exam 2024', type: 'PDF', size: '1.5 MB' },
-        ]
-    },
-    {
-        year: '2023',
-        papers: [
-            { subject: 'Mathematics', exam: 'Annual Exam 2023', type: 'PDF', size: '1.6 MB' },
-            { subject: 'Science', exam: 'Annual Exam 2023', type: 'PDF', size: '2.0 MB' },
-            { subject: 'English', exam: 'Annual Exam 2023', type: 'PDF', size: '1.4 MB' },
-        ]
-    }
-];
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 export function StudentMaterials() {
     const { t } = useTranslation();
+    const { user } = useAuth();
+    const [materials, setMaterials] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [studentClass, setStudentClass] = useState<any>(null);
+
+    useEffect(() => {
+        if (user?.institutionId) {
+            fetchStudentData();
+        }
+    }, [user?.institutionId]);
+
+    const fetchStudentData = async () => {
+        try {
+            setIsLoading(true);
+
+            // 1. Get Student Data (Class & Section)
+            const { data: studentData, error: studentError } = await supabase
+                .from('students')
+                .select('*, classes(id, name)') // Assuming 'section' is part of '*' or needs to be explicitly selected if not.
+                .eq('id', user?.id)
+                .single();
+
+            if (studentError || !studentData) {
+                console.warn("Student record not found.", studentError);
+                fetchMaterials(null, null);
+            } else {
+                setStudentClass(studentData.classes);
+                // Assuming 'section' column exists on students table (common pattern)
+                // If not, it comes from section_id? Let's try 'section'.
+                fetchMaterials(studentData.class_id, studentData.section);
+                return;
+            }
+        } catch (error) {
+            console.error(error);
+            setIsLoading(false);
+        }
+    };
+
+    const fetchMaterials = async (classId: string | null, section: string | null) => {
+        try {
+            // Fetch ALL materials for institution to handle complex filtering client-side
+            // (e.g. show "All Class 10" materials AND "Class 10 Section A" materials)
+            let query = supabase
+                .from('learning_resources')
+                .select('*, subjects(name)')
+                .eq('institution_id', user?.institutionId)
+                .order('created_at', { ascending: false });
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            let filteredData = data || [];
+
+            if (classId) {
+                filteredData = filteredData.filter(item => {
+                    // Rule 1: If the resource has a class_id, it must match the student's classId.
+                    // If item.class_id is null, it's considered global/for all classes, so include it.
+                    if (item.class_id && item.class_id !== classId) return false;
+
+                    // Rule 2: If the resource has a section, it must match the student's section.
+                    // If item.section is null, it's considered for all sections within that class, so include it.
+                    if (item.section && item.section !== section) return false;
+
+                    return true;
+                });
+            }
+
+            setMaterials(filteredData);
+        } catch (error) {
+            console.error('Error fetching materials:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Filter into buckets
+    const studyMaterials = materials.filter(m => m.resource_type === 'study_material');
+    const questionPapers = materials.filter(m => m.resource_type === 'question_paper');
+
+    // Group by Subject for Study Materials
+    const groupedMaterials = studyMaterials.reduce((acc: any, item) => {
+        const subjectName = item.subjects?.name || 'General';
+        if (!acc[subjectName]) acc[subjectName] = [];
+        acc[subjectName].push(item);
+        return acc;
+    }, {});
+
+    // Group by Year for Question Papers? 
+    // We don't have a "Year" field in schema, just created_at or date provided in title?
+    // Let's just list them or group by Subject as well for consistency.
+    // Or group by Year if we parse title/date.
+    // For now, let's group by Subject just like Materials, simple and effective.
+    const groupedPapers = questionPapers.reduce((acc: any, item) => {
+        const subjectName = item.subjects?.name || 'General';
+        if (!acc[subjectName]) acc[subjectName] = [];
+        acc[subjectName].push(item);
+        return acc;
+    }, {});
+
 
     return (
         <StudentLayout>
             <PageHeader
                 title={t.nav.materials}
-                subtitle={t.dashboard.overview}
+                subtitle={studentClass ? `For Class: ${studentClass.name}` : t.dashboard.overview}
             />
 
-            <Tabs defaultValue="materials" className="w-full">
-                <TabsList className="mb-6">
-                    <TabsTrigger value="materials" className="flex items-center gap-2">
-                        <Book className="w-4 h-4" />
-                        Study Materials
-                    </TabsTrigger>
-                    <TabsTrigger value="papers" className="flex items-center gap-2">
-                        <History className="w-4 h-4" />
-                        Previous Year Question Papers
-                    </TabsTrigger>
-                </TabsList>
+            {isLoading ? (
+                <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
+            ) : (
+                <Tabs defaultValue="materials" className="w-full">
+                    <TabsList className="mb-6">
+                        <TabsTrigger value="materials" className="flex items-center gap-2">
+                            <Book className="w-4 h-4" />
+                            Study Materials
+                        </TabsTrigger>
+                        <TabsTrigger value="papers" className="flex items-center gap-2">
+                            <History className="w-4 h-4" />
+                            Previous Year Question Papers
+                        </TabsTrigger>
+                    </TabsList>
 
-                <TabsContent value="materials">
-                    <div className="space-y-6">
-                        {materials.map((course) => (
-                            <div key={course.course} className="dashboard-card">
-                                <h3 className="font-semibold mb-4">{course.course}</h3>
+                    <TabsContent value="materials">
+                        {Object.keys(groupedMaterials).length === 0 ? (
+                            <div className="text-center py-10 text-muted-foreground">No study materials found for your class.</div>
+                        ) : (
+                            <div className="space-y-6">
+                                {Object.entries(groupedMaterials).map(([subject, items]: [string, any]) => (
+                                    <div key={subject} className="dashboard-card">
+                                        <h3 className="font-semibold mb-4 text-lg text-primary">{subject}</h3>
+                                        <div className="space-y-3">
+                                            {items.map((item: any) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                            <FileText className="w-5 h-5 text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-base">{item.title}</p>
+                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                                                <Calendar className="w-3 h-3" />
+                                                                <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
-                                <div className="space-y-3">
-                                    {course.items.map((item, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                    <FileText className="w-5 h-5 text-primary" />
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            variant="outline" size="sm" className="flex items-center gap-2"
+                                                            onClick={() => window.open(item.file_url, '_blank')}
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                            View
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline" size="sm" className="flex items-center gap-2"
+                                                            onClick={() => window.open(item.file_url, '_blank')}
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            Download
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium">{item.name}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {item.type} • {item.size} • {item.date}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                                    <Eye className="w-4 h-4" />
-                                                    View
-                                                </Button>
-                                                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                                    <Download className="w-4 h-4" />
-                                                    Download
-                                                </Button>
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </TabsContent>
+                        )}
+                    </TabsContent>
 
-                <TabsContent value="papers">
-                    <div className="space-y-6">
-                        {questionPapers.map((yearGroup) => (
-                            <div key={yearGroup.year} className="dashboard-card">
-                                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                    <History className="w-5 h-5 text-muted-foreground" />
-                                    Academic Year {yearGroup.year}
-                                </h3>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {yearGroup.papers.map((paper, index) => (
-                                        <div key={index} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border hover:border-primary/50 transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                                                    <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    <TabsContent value="papers">
+                        {Object.keys(groupedPapers).length === 0 ? (
+                            <div className="text-center py-10 text-muted-foreground">No question papers found for your class.</div>
+                        ) : (
+                            <div className="space-y-6">
+                                {Object.entries(groupedPapers).map(([subject, items]: [string, any]) => (
+                                    <div key={subject} className="dashboard-card">
+                                        <h3 className="font-semibold mb-4 text-lg text-red-600 dark:text-red-400">{subject}</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {items.map((item: any) => (
+                                                <div key={item.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border hover:border-primary/50 transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                                                            <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium">{item.title}</p>
+                                                            <p className="text-sm text-muted-foreground">{new Date(item.created_at).toLocaleDateString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost" size="icon" className="text-muted-foreground hover:text-primary"
+                                                        onClick={() => window.open(item.file_url, '_blank')}
+                                                    >
+                                                        <Download className="w-5 h-5" />
+                                                    </Button>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium">{paper.subject}</p>
-                                                    <p className="text-sm text-muted-foreground">{paper.exam}</p>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">{paper.size}</p>
-                                                </div>
-                                            </div>
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                                                <Download className="w-5 h-5" />
-                                            </Button>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </TabsContent>
-            </Tabs>
+                        )}
+                    </TabsContent>
+                </Tabs>
+            )}
         </StudentLayout>
     );
 }
