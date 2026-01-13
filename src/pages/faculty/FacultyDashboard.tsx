@@ -116,8 +116,12 @@ export function FacultyDashboard() {
     {
       key: 'actions',
       header: '',
-      render: () => (
-        <Button variant="outline" size="sm">
+      render: (row: any) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/faculty/review-submission', { state: { submission: row } })}
+        >
           Review
         </Button>
       ),

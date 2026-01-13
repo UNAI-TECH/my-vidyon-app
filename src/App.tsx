@@ -53,6 +53,7 @@ import { UploadExamPaper } from "./pages/faculty/UploadExamPaper";
 import { FacultySettings } from "./pages/faculty/FacultySettings";
 import { FacultyCourseDetails } from "./pages/faculty/FacultyCourseDetails";
 import { TimetableManagement } from "./pages/faculty/TimetableManagement";
+import { ReviewSubmission } from "./pages/faculty/ReviewSubmission";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -151,6 +152,7 @@ const App = () => {
                   <Route path="/faculty/courses/create" element={<ProtectedRoute allowedRoles={['faculty']}><CreateSubject /></ProtectedRoute>} />
                   <Route path="/faculty/exams/upload" element={<ProtectedRoute allowedRoles={['faculty']}><UploadExamPaper /></ProtectedRoute>} />
                   <Route path="/faculty/timetable" element={<ProtectedRoute allowedRoles={['faculty']}><TimetableManagement /></ProtectedRoute>} />
+                  <Route path="/faculty/review-submission" element={<ProtectedRoute allowedRoles={['faculty']}><ReviewSubmission /></ProtectedRoute>} />
                   <Route path="/faculty/settings" element={<ProtectedRoute allowedRoles={['faculty']}><FacultySettings /></ProtectedRoute>} />
 
                   {/* Institution Routes */}

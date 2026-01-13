@@ -14,6 +14,12 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -28,6 +34,7 @@ const students = [
 export function FacultyAttendance() {
     const [attendance, setAttendance] = useState(students);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent'>('all');
     const [newStudent, setNewStudent] = useState({
         name: '',
         rollNo: '',
@@ -56,6 +63,11 @@ export function FacultyAttendance() {
         setIsDialogOpen(false);
         setNewStudent({ name: '', rollNo: '', class: 'Grade 10-A' });
     };
+
+    // Filter students based on selected status
+    const filteredAttendance = filterStatus === 'all'
+        ? attendance
+        : attendance.filter(s => s.status === filterStatus);
 
     const columns = [
         { key: 'rollNo', header: 'Roll No.' },
@@ -162,10 +174,25 @@ export function FacultyAttendance() {
                             </DialogContent>
                         </Dialog>
 
-                        <Button variant="outline" className="flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter Class
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="flex items-center gap-2">
+                                    <Filter className="w-4 h-4" />
+                                    Filter: {filterStatus === 'all' ? 'All' : filterStatus === 'present' ? 'Present' : 'Absent'}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setFilterStatus('all')}>
+                                    All Students
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setFilterStatus('present')}>
+                                    Present Only
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setFilterStatus('absent')}>
+                                    Absent Only
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button className="btn-primary">
                             Save Attendance
                         </Button>
@@ -190,7 +217,7 @@ export function FacultyAttendance() {
                     </div>
                 </div>
 
-                <DataTable columns={columns} data={attendance} />
+                <DataTable columns={columns} data={filteredAttendance} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
