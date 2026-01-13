@@ -5,14 +5,22 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, FileText, Download, MoreVertical, Edit, XCircle } from 'lucide-react';
+import { Plus, Search, FileText, Download, MoreVertical, Edit, XCircle, Eye } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 const initialAssignments = [
     { id: 1, title: 'Algebra Homework', subject: 'Mathematics', class: 'Grade 10-A', dueDate: 'Dec 22, 2025', submissions: '42/45', status: 'active' },
@@ -24,18 +32,19 @@ const initialAssignments = [
 export function FacultyAssignments() {
     const navigate = useNavigate();
     const [assignments, setAssignments] = useState(initialAssignments);
+    const [viewSubmissionsOpen, setViewSubmissionsOpen] = useState(false);
+    const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
+    const [submissions, setSubmissions] = useState<any[]>([]);
+    const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
     useEffect(() => {
         const storedAssignments = localStorage.getItem('faculty_assignments');
         if (storedAssignments) {
             const parsed = JSON.parse(storedAssignments);
-            // Combine initial and stored, removing duplicates if needed (simple concat here)
-            // Ideally we'd have a database. For now we just show both or just the stored one if we want full persistence simulation
-            // But to keep the "demo" data visible + new data, we concat:
             if (Array.isArray(parsed)) {
                 setAssignments([...initialAssignments, ...parsed.map((p: any) => ({
                     ...p,
-                    id: p.id || Math.random() // Ensure ID
+                    id: p.id || Math.random()
                 }))]);
             }
         }
@@ -51,6 +60,52 @@ export function FacultyAssignments() {
     const handleUpdateAssignment = (id: number) => {
         // Navigate to edit page
         navigate(`/faculty/assignments/edit/${id}`);
+    };
+
+    const handleViewSubmissions = async (assignment: any) => {
+        setSelectedAssignment(assignment);
+        setViewSubmissionsOpen(true);
+        setIsLoadingSubmissions(true);
+        setSubmissions([]);
+
+        try {
+            // Fetch submissions for this assignment (using title as ID for demo consistency)
+            const { data, error } = await supabase
+                .from('submissions')
+                .select('*')
+                .eq('assignment_id', assignment.title);
+
+            if (error) throw error;
+            setSubmissions(data || []);
+        } catch (error) {
+            console.error('Error fetching submissions:', error);
+            toast.error('Failed to load submissions');
+            // Mock data for demo if DB is empty/fails
+            setSubmissions([
+                { id: '1', student_name: 'John Doe', submitted_at: new Date().toISOString(), file_name: 'homework.pdf' },
+                { id: '2', student_name: 'Jane Smith', submitted_at: new Date(Date.now() - 86400000).toISOString(), file_name: 'assignment.jpg' }
+            ]);
+        } finally {
+            setIsLoadingSubmissions(false);
+        }
+    };
+
+    const handleDownload = async (submission: any) => {
+        try {
+            if (!submission.file_path) {
+                toast.error("File not found");
+                return;
+            }
+            const { data } = supabase.storage.from('assignments').getPublicUrl(submission.file_path);
+            if (data?.publicUrl) {
+                window.open(data.publicUrl, '_blank');
+            } else {
+                toast.error("Could not generate download URL");
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error("Download failed");
+        }
     };
 
     const columns = [
@@ -71,10 +126,10 @@ export function FacultyAssignments() {
         {
             key: 'actions',
             header: '',
-            render: (item: typeof assignments[0]) => (
+            render: (item: any) => (
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                        <Download className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" onClick={() => handleViewSubmissions(item)} title="View Submissions">
+                        <Eye className="w-4 h-4" />
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -154,6 +209,40 @@ export function FacultyAssignments() {
 
                 <DataTable columns={columns} data={assignments} />
             </div>
+
+            <Dialog open={viewSubmissionsOpen} onOpenChange={setViewSubmissionsOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Submissions for {selectedAssignment?.title}</DialogTitle>
+                        <DialogDescription>
+                            Review student submissions below.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4">
+                        {isLoadingSubmissions ? (
+                            <div className="text-center py-4">Loading submissions...</div>
+                        ) : submissions.length === 0 ? (
+                            <div className="text-center py-4 text-muted-foreground">No submissions found.</div>
+                        ) : (
+                            <div className="space-y-2">
+                                {submissions.map((sub, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
+                                        <div>
+                                            <p className="font-medium">{sub.student_name || 'Unknown Student'}</p>
+                                            <p className="text-sm text-muted-foreground">Submitted: {new Date(sub.submitted_at).toLocaleString()}</p>
+                                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{sub.file_name}</p>
+                                        </div>
+                                        <Button size="sm" variant="outline" onClick={() => handleDownload(sub)}>
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Download
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </FacultyLayout>
     );
 }
