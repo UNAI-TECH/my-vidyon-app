@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -10,18 +10,37 @@ import {
 import { Calendar, FileText } from 'lucide-react';
 
 interface ExamType {
+    description: ReactNode;
     value: string;
     label: string;
     short: string;
 }
 
 const EXAM_TYPES: ExamType[] = [
-    { value: 'mid-term-1', label: 'Mid-Term 1', short: 'Mid-Term' },
-    { value: 'quarterly', label: 'Quarterly', short: 'Quarterly' },
-    { value: 'mid-term-2', label: 'Mid-Term 2', short: 'Mid-Term' },
-    { value: 'half-yearly', label: 'Half-yearly', short: 'Half-yearly' },
-    { value: 'model', label: 'Model Exam', short: 'Model' },
-    { value: 'annual', label: 'Annual', short: 'Annual' }
+    {
+        value: 'mid-term-1', label: 'Mid-Term 1', short: 'Mid-Term',
+        description: ''
+    },
+    {
+        value: 'quarterly', label: 'Quarterly', short: 'Quarterly',
+        description: ''
+    },
+    {
+        value: 'mid-term-2', label: 'Mid-Term 2', short: 'Mid-Term',
+        description: ''
+    },
+    {
+        value: 'half-yearly', label: 'Half-yearly', short: 'Half-yearly',
+        description: ''
+    },
+    {
+        value: 'model', label: 'Model Exam', short: 'Model',
+        description: ''
+    },
+    {
+        value: 'annual', label: 'Annual', short: 'Annual',
+        description: ''
+    }
 ];
 
 interface ExamTypeSelectorProps {
