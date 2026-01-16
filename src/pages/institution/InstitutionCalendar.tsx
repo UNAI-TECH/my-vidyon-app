@@ -3,7 +3,7 @@ import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
-import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Loader2, BookOpen, Users, FileText, Download, Clock, Filter, Trash2, CalendarDays } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Loader2, BookOpen, Users, FileText, Download, Clock, Filter, Trash2, CalendarDays, Image, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -56,7 +56,7 @@ interface AcademicEvent {
     category: string;
     description: string;
     isUserAdded: boolean; // Flag to distiguish (mostly true for DB items)
-    banner?: string | null;
+    banner_url?: string | null;
 }
 
 const CLASSES = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -78,7 +78,9 @@ export function InstitutionCalendar() {
     const [loading, setLoading] = useState(true);
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<AcademicEvent | null>(null);
     const [newEvent, setNewEvent] = useState({
         title: '',
         type: '',
@@ -136,7 +138,7 @@ export function InstitutionCalendar() {
                             start_date: e.start_date,
                             end_date: e.end_date,
                             isUserAdded: true,
-                            banner: null // Add banner support later if needed
+                            banner_url: e.banner_url || null
                         };
                     });
                     setEvents(formattedEvents);
@@ -244,6 +246,32 @@ export function InstitutionCalendar() {
             const start = dateRange.from;
             const end = dateRange.to || dateRange.from;
 
+            let bannerUrl: string | null = null;
+
+            // Upload banner if selected
+            if (eventBanner) {
+                const fileExt = eventBanner.name.split('.').pop();
+                const fileName = `${user.institutionId}/${Date.now()}.${fileExt}`;
+
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('event-banners')
+                    .upload(fileName, eventBanner, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    console.error('Banner upload error:', uploadError);
+                    toast.error('Failed to upload banner');
+                } else {
+                    // Get public URL
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('event-banners')
+                        .getPublicUrl(fileName);
+                    bannerUrl = publicUrl;
+                }
+            }
+
             const { error } = await supabase.from('academic_events').insert([{
                 institution_id: user.institutionId,
                 title: newEvent.title,
@@ -251,7 +279,8 @@ export function InstitutionCalendar() {
                 event_type: newEvent.type,
                 category: newEvent.category,
                 start_date: start.toISOString(),
-                end_date: end.toISOString()
+                end_date: end.toISOString(),
+                banner_url: bannerUrl
             }]);
 
             if (error) throw error;
@@ -293,6 +322,96 @@ export function InstitutionCalendar() {
                 console.error("Error deleting event:", err);
                 toast.error("Failed to delete event");
             }
+        }
+    };
+
+    const handleEditClick = (event: AcademicEvent) => {
+        setEditingEvent(event);
+        setNewEvent({
+            title: event.title,
+            type: event.type,
+            category: event.category,
+            description: event.description
+        });
+
+        // Set date range from event dates
+        const startDate = new Date(event.start_date);
+        const endDate = new Date(event.end_date);
+        setDateRange({
+            from: startDate,
+            to: startDate.getTime() === endDate.getTime() ? undefined : endDate
+        });
+
+        setIsEditDialogOpen(true);
+    };
+
+    const handleUpdateEvent = async () => {
+        if (!user?.institutionId || !editingEvent) return;
+        setIsSubmitting(true);
+
+        try {
+            if (!dateRange?.from) {
+                toast.error("Please select a date range");
+                setIsSubmitting(false);
+                return;
+            }
+
+            const start = dateRange.from;
+            const end = dateRange.to || dateRange.from;
+
+            let bannerUrl: string | null = editingEvent.banner_url || null;
+
+            // Upload new banner if selected
+            if (eventBanner) {
+                const fileExt = eventBanner.name.split('.').pop();
+                const fileName = `${user.institutionId}/${Date.now()}.${fileExt}`;
+
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('event-banners')
+                    .upload(fileName, eventBanner, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    console.error('Banner upload error:', uploadError);
+                    toast.error('Failed to upload banner');
+                } else {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('event-banners')
+                        .getPublicUrl(fileName);
+                    bannerUrl = publicUrl;
+                }
+            }
+
+            const { error } = await supabase
+                .from('academic_events')
+                .update({
+                    title: newEvent.title,
+                    description: newEvent.description,
+                    event_type: newEvent.type,
+                    category: newEvent.category,
+                    start_date: start.toISOString(),
+                    end_date: end.toISOString(),
+                    banner_url: bannerUrl
+                })
+                .eq('id', editingEvent.id)
+                .eq('institution_id', user.institutionId);
+
+            if (error) throw error;
+
+            toast.success("Event updated successfully");
+            setIsEditDialogOpen(false);
+            setEditingEvent(null);
+            setNewEvent({ title: '', type: '', category: '', description: '' });
+            setDateRange(undefined);
+            setEventBanner(null);
+
+        } catch (err: any) {
+            console.error("Error updating event:", err);
+            toast.error(err.message || "Failed to update event");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -462,12 +581,172 @@ export function InstitutionCalendar() {
                                             placeholder="Event details..."
                                         />
                                     </div>
-                                    {/* Banner upload temporarily disabled in simple CRUD logic */}
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="banner" className="text-right">Banner</Label>
+                                        <div className="col-span-3">
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    id="banner"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleFileChange}
+                                                    className="flex-1"
+                                                />
+                                                {eventBanner && (
+                                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                        <Image className="w-3 h-3" />
+                                                        {eventBanner.name}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Upload an image banner for this event (optional)
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" onClick={handleAddEvent} disabled={!newEvent.title || !dateRange?.from || isSubmitting}>
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Save Event
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+
+                        {/* Edit Event Dialog */}
+                        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Edit Event</DialogTitle>
+                                    <DialogDescription>
+                                        Update the event details in the academic calendar.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="edit-title" className="text-right">Title</Label>
+                                        <Input
+                                            id="edit-title"
+                                            value={newEvent.title}
+                                            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="Event Title"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="edit-date" className="text-right">Date</Label>
+                                        <div className="col-span-3">
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        id="edit-date"
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal",
+                                                            !dateRange && "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        <CalendarDays className="mr-2 h-4 w-4" />
+                                                        {dateRange?.from ? (
+                                                            dateRange.to ? (
+                                                                <>
+                                                                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                                    {format(dateRange.to, "LLL dd, y")}
+                                                                </>
+                                                            ) : (
+                                                                format(dateRange.from, "LLL dd, y")
+                                                            )
+                                                        ) : (
+                                                            <span>Pick a date</span>
+                                                        )}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <Calendar
+                                                        initialFocus
+                                                        mode="range"
+                                                        defaultMonth={dateRange?.from}
+                                                        selected={dateRange}
+                                                        onSelect={setDateRange}
+                                                        numberOfMonths={2}
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="edit-type" className="text-right">Type</Label>
+                                        <div className="col-span-3">
+                                            <Select
+                                                value={newEvent.type}
+                                                onValueChange={(value) => setNewEvent({ ...newEvent, type: value })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select type" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="academic">Academic</SelectItem>
+                                                    <SelectItem value="exam">Exam</SelectItem>
+                                                    <SelectItem value="cultural">Cultural</SelectItem>
+                                                    <SelectItem value="holiday">Holiday</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="edit-category" className="text-right">Category</Label>
+                                        <Input
+                                            id="edit-category"
+                                            value={newEvent.category}
+                                            onChange={(e) => setNewEvent({ ...newEvent, category: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="e.g. Major Event"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="edit-description" className="text-right">Description</Label>
+                                        <Textarea
+                                            id="edit-description"
+                                            value={newEvent.description}
+                                            onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="Event details..."
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="edit-banner" className="text-right">Banner</Label>
+                                        <div className="col-span-3">
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    id="edit-banner"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleFileChange}
+                                                    className="flex-1"
+                                                />
+                                                {eventBanner && (
+                                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                        <Image className="w-3 h-3" />
+                                                        {eventBanner.name}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {editingEvent?.banner_url && !eventBanner && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Current banner will be kept if no new file is selected
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Upload a new image to replace the current banner (optional)
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="submit" onClick={handleUpdateEvent} disabled={!newEvent.title || !dateRange?.from || isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Update Event
                                     </Button>
                                 </DialogFooter>
                             </DialogContent>
@@ -578,17 +857,31 @@ export function InstitutionCalendar() {
                         {events.map((event, index) => (
                             <div key={event.id} className="flex-none w-[300px] rounded-xl overflow-hidden border bg-card hover:shadow-md transition-all group relative">
                                 <div className="h-40 bg-muted relative overflow-hidden">
-                                    {/* Placeholder or banner */}
-                                    <div className="w-full h-full flex items-center justify-center bg-primary/5">
-                                        <CalendarIcon className="w-12 h-12 text-primary/20" />
-                                    </div>
+                                    {event.banner_url ? (
+                                        <img
+                                            src={event.banner_url}
+                                            alt={event.title}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-primary/5">
+                                            <CalendarIcon className="w-12 h-12 text-primary/20" />
+                                        </div>
+                                    )}
                                     <div className="absolute top-2 right-2">
                                         <Badge variant="info" className="bg-background/80 backdrop-blur-sm text-foreground shadow-sm uppercase text-[10px]">{event.type}</Badge>
                                     </div>
                                 </div>
                                 <button
+                                    onClick={() => handleEditClick(event)}
+                                    className="absolute top-2 left-2 p-1.5 bg-background/80 text-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary hover:text-white z-10"
+                                    title="Edit Event"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
                                     onClick={() => handleDeleteClick(event.id)}
-                                    className="absolute top-2 left-2 p-1.5 bg-background/80 text-destructive rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-white z-10"
+                                    className="absolute top-2 left-12 p-1.5 bg-background/80 text-destructive rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-white z-10"
                                     title="Delete Event"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -634,6 +927,7 @@ export function InstitutionCalendar() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
             {/* Exam Schedule Section - Static for now as it maps to timetable which is big feature */}
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Exam Schedule Section */}

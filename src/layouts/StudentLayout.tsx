@@ -23,6 +23,7 @@ export function StudentLayout({ children }: { children: ReactNode }) {
     { label: t.nav.dashboard, href: '/student', icon: LayoutDashboard },
     { label: t.nav.courses, href: '/student/courses', icon: BookOpen },
     { label: t.nav.timetable, href: '/student/timetable', icon: Calendar },
+    { label: 'Academic Calendar', href: '/student/calendar', icon: Calendar },
     { label: t.nav.attendance, href: '/student/attendance', icon: ClipboardCheck },
     { label: t.nav.assignments, href: '/student/assignments', icon: FileText },
     { label: t.nav.grades, href: '/student/grades', icon: GraduationCap },

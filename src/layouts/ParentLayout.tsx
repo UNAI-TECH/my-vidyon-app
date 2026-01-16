@@ -6,6 +6,7 @@ import {
     CreditCard,
     Settings,
     CalendarDays,
+    Calendar,
 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/TranslationContext';
@@ -16,6 +17,7 @@ export function ParentLayout({ children }: { children: ReactNode }) {
     const parentNavItems = [
         { label: t.nav.dashboard, href: '/parent', icon: LayoutDashboard },
         { label: t.nav.notifications, href: '/parent/notifications', icon: Bell },
+        { label: 'Academic Calendar', href: '/parent/calendar', icon: Calendar },
         { label: t.nav.fees, href: '/parent/fees', icon: CreditCard },
         { label: t.nav.leave, href: '/parent/leave', icon: CalendarDays },
         { label: t.nav.settings, href: '/parent/settings', icon: Settings },
