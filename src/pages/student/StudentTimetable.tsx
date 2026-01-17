@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { Badge } from '@/components/common/Badge';
 import { useQuery } from '@tanstack/react-query';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StudentExamScheduleView } from '@/components/exam-schedule/StudentExamScheduleView';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -233,82 +235,95 @@ export function StudentTimetable() {
                 subtitle={`${studentInfo.class_name} - Section ${studentInfo.section}`}
             />
 
-            <Card className="m-4">
-                <CardContent className="p-0 overflow-x-auto">
-                    <table className="w-full border-collapse min-w-[1000px]">
-                        <thead>
-                            <tr>
-                                <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0">Day</th>
-                                {PERIODS.map((p) => (
-                                    <th key={p} className="border p-3 bg-muted/50 text-sm font-medium text-left">
-                                        Period {p}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {DAYS.map((day) => (
-                                <tr key={day}>
-                                    <td className="border p-4 font-semibold bg-muted/10 sticky left-0">{day}</td>
-                                    {PERIODS.map((period) => {
-                                        const key = `${day}-${period}`;
-                                        const slot = timetableData[key];
-                                        return (
-                                            <td
-                                                key={period}
-                                                className="border p-2 min-w-[140px] h-[100px] align-top"
-                                            >
-                                                {slot?.subject_id ? (
-                                                    <div className="space-y-1 p-1">
-                                                        <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
-                                                            {slot.subjects?.name || 'Subject'}
-                                                        </Badge>
-                                                        {slot.profiles?.full_name && (
-                                                            <div className="text-xs font-medium pl-1">
-                                                                {slot.profiles.full_name}
-                                                            </div>
-                                                        )}
-                                                        {slot.room_number && (
-                                                            <div className="text-[10px] text-muted-foreground pl-1">
-                                                                Room: {slot.room_number}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground pl-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {slot.start_time} - {slot.end_time}
-                                                        </div>
-                                                    </div>
-                                                ) : slot?.is_break ? (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <Badge className="text-xs bg-secondary text-secondary-foreground">
-                                                            {slot.break_name || 'Break'}
-                                                        </Badge>
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 text-xs">
-                                                        -
-                                                    </div>
-                                                )}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </CardContent>
-            </Card>
+            <Tabs defaultValue="timetable" className="m-4">
+                <TabsList>
+                    <TabsTrigger value="timetable">My Timetable</TabsTrigger>
+                    <TabsTrigger value="exam-schedule">Exam Schedule</TabsTrigger>
+                </TabsList>
 
-            {timetableSlots.length === 0 && (
-                <Card className="m-4">
-                    <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
-                        <Calendar className="w-12 h-12 mb-4" />
-                        <h2 className="text-xl font-semibold mb-2">No Timetable Published</h2>
-                        <p>Your class teacher hasn't published the timetable yet.</p>
-                        <p className="text-sm mt-2">Class: {studentInfo.class_name} - Section {studentInfo.section}</p>
-                    </CardContent>
-                </Card>
-            )}
+                <TabsContent value="timetable">
+                    <Card>
+                        <CardContent className="p-0 overflow-x-auto">
+                            <table className="w-full border-collapse min-w-[1000px]">
+                                <thead>
+                                    <tr>
+                                        <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0">Day</th>
+                                        {PERIODS.map((p) => (
+                                            <th key={p} className="border p-3 bg-muted/50 text-sm font-medium text-left">
+                                                Period {p}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {DAYS.map((day) => (
+                                        <tr key={day}>
+                                            <td className="border p-4 font-semibold bg-muted/10 sticky left-0">{day}</td>
+                                            {PERIODS.map((period) => {
+                                                const key = `${day}-${period}`;
+                                                const slot = timetableData[key];
+                                                return (
+                                                    <td
+                                                        key={period}
+                                                        className="border p-2 min-w-[140px] h-[100px] align-top"
+                                                    >
+                                                        {slot?.subject_id ? (
+                                                            <div className="space-y-1 p-1">
+                                                                <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
+                                                                    {slot.subjects?.name || 'Subject'}
+                                                                </Badge>
+                                                                {slot.profiles?.full_name && (
+                                                                    <div className="text-xs font-medium pl-1">
+                                                                        {slot.profiles.full_name}
+                                                                    </div>
+                                                                )}
+                                                                {slot.room_number && (
+                                                                    <div className="text-[10px] text-muted-foreground pl-1">
+                                                                        Room: {slot.room_number}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground pl-1">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    {slot.start_time} - {slot.end_time}
+                                                                </div>
+                                                            </div>
+                                                        ) : slot?.is_break ? (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <Badge className="text-xs bg-secondary text-secondary-foreground">
+                                                                    {slot.break_name || 'Break'}
+                                                                </Badge>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 text-xs">
+                                                                -
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </CardContent>
+                    </Card>
+
+                    {timetableSlots.length === 0 && (
+                        <Card>
+                            <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                                <Calendar className="w-12 h-12 mb-4" />
+                                <h2 className="text-xl font-semibold mb-2">No Timetable Published</h2>
+                                <p>Your class teacher hasn't published the timetable yet.</p>
+                                <p className="text-sm mt-2">Class: {studentInfo.class_name} - Section {studentInfo.section}</p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="exam-schedule">
+                    <StudentExamScheduleView />
+                </TabsContent>
+            </Tabs>
         </StudentLayout>
     );
 }

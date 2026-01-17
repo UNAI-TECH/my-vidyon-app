@@ -22,6 +22,8 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { ExamScheduleManager } from '@/components/exam-schedule/ExamScheduleManager';
+
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -426,6 +428,7 @@ export function TimetableManagement() {
                             Class Timetable
                             {staffDetails?.class_assigned && ` (${staffDetails.class_assigned} - ${staffDetails.section_assigned})`}
                         </TabsTrigger>
+                        <TabsTrigger value="exam-schedule">Exam Schedule</TabsTrigger>
                     </TabsList>
 
                     {/* My Personal Schedule (Read-only, created by institution) */}
@@ -603,6 +606,15 @@ export function TimetableManagement() {
                                 </table>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* Exam Schedule Tab */}
+                    <TabsContent value="exam-schedule">
+                        <ExamScheduleManager
+                            classId={classDetails?.id}
+                            className={staffDetails?.class_assigned}
+                            section={staffDetails?.section_assigned}
+                        />
                     </TabsContent>
                 </Tabs>
             </div>
