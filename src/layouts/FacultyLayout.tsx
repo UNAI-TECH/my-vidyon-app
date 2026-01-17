@@ -13,6 +13,7 @@ import {
   Megaphone,
   Calendar,
   Settings,
+  Camera,
 } from 'lucide-react';
 
 export function FacultyLayout({ children }: { children: ReactNode }) {

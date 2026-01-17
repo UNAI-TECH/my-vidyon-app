@@ -15,6 +15,7 @@ import {
   UserCheck,
   ClipboardCheck,
   CalendarClock,
+  Camera,
 } from 'lucide-react';
 
 export function InstitutionLayout({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export function InstitutionLayout({ children }: { children: ReactNode }) {
     { label: 'Faculty Assigning', href: '/institution/faculty-assigning', icon: UserCheck },
     { label: 'Leave Approval', href: '/institution/leave-approval', icon: ClipboardCheck },
     { label: 'Timetable', href: '/institution/timetable', icon: CalendarClock },
+    { label: 'Staff Attendance', href: '/institution/staff-attendance', icon: Camera },
     { label: t.nav.feeStructure, href: '/institution/fees', icon: DollarSign },
     { label: t.nav.analytics, href: '/institution/analytics', icon: BarChart3 },
     { label: t.nav.reports, href: '/institution/reports', icon: FileText },

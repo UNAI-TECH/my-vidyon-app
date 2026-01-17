@@ -5,6 +5,9 @@ import { Plus, Upload, X, Loader2, ChevronDown, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
+import { useRef, useEffect } from 'react';
+import * as faceapi from 'face-api.js';
+import { Camera, Trash2 } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -26,6 +29,52 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
         name: '', registerNumber: '', className: '', section: '', dob: '', gender: '',
         parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: ''
     });
+    const [image, setImage] = useState<string | null>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const startCamera = async () => {
+        setIsCameraOpen(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) videoRef.current.srcObject = stream;
+        } catch (error) {
+            toast.error('Could not access camera');
+        }
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const context = canvasRef.current.getContext('2d');
+            if (context) {
+                canvasRef.current.width = videoRef.current.videoWidth;
+                canvasRef.current.height = videoRef.current.videoHeight;
+                context.drawImage(videoRef.current, 0, 0);
+                setImage(canvasRef.current.toDataURL('image/jpeg'));
+                stopCamera();
+            }
+        }
+    };
+
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+        setIsCameraOpen(false);
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
     const queryClient = useQueryClient();
 
     // Fetch Classes
@@ -73,6 +122,27 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
             // DEBUG: Log the token explicitly to verify it exists and is attached
             console.log('Using Access Token:', session.access_token ? (session.access_token.substring(0, 10) + '...') : 'NULL');
 
+            // 1. Photo Upload
+            let imageUrl = null;
+
+            if (image) {
+                const fileName = `student_${Date.now()}.jpg`;
+                const byteString = atob(image.split(',')[1]);
+                const mimeString = image.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+                const blob = new Blob([ab], { type: mimeString });
+
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('student-photos')
+                    .upload(fileName, blob);
+
+                if (uploadError) throw new Error(`Could not upload photo: ${uploadError.message}. Did you create the 'student-photos' bucket and make it public?`);
+                const { data: { publicUrl } } = supabase.storage.from('student-photos').getPublicUrl(fileName);
+                imageUrl = publicUrl;
+            }
+
             const { data: responseData, error } = await supabase.functions.invoke('create-user', {
                 headers: {
                     Authorization: `Bearer ${session.access_token}`
@@ -88,17 +158,20 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     parent_name: data.parentName,
                     register_number: data.registerNumber,
                     class_name: data.className,
-                    section: data.section
+                    section: data.section,
+                    image_url: imageUrl // Hope Edge function supports this
                 }
             });
 
             if (error) throw error;
+
             toast.success('Student added successfully');
             // Optimistic update or immediate fetch
             queryClient.invalidateQueries({ queryKey: ['institution-students'] });
             onSuccess();
             onOpenChange(false);
             setData({ name: '', registerNumber: '', className: '', section: '', dob: '', gender: '', parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '' });
+            setImage(null);
         } catch (error: any) {
             const errorMsg = error.message || 'Failed to add student';
             const errorDetails = error.details || error.hint ? ` (${error.details || error.hint})` : '';
@@ -191,6 +264,61 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                         <Label>Password *</Label>
                         <Input type="password" value={data.password} onChange={(e) => setData({ ...data, password: e.target.value })} placeholder="Min 6 characters" />
                     </div>
+
+                    {/* PHOTO SECTION */}
+                    <div className="space-y-2 md:col-span-2 border-t pt-4">
+                        <Label>Student Photo (For Camera Recognition)</Label>
+                        <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-lg bg-muted/50">
+                            {image ? (
+                                <div className="relative w-48 aspect-square rounded-lg overflow-hidden shadow-md">
+                                    <img src={image} alt="Student" className="w-full h-full object-cover" />
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-2 right-2 rounded-full"
+                                        onClick={() => setImage(null)}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            ) : isCameraOpen ? (
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="w-64 aspect-video bg-black rounded-lg overflow-hidden relative">
+                                        <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
+                                        <canvas ref={canvasRef} className="hidden" />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="button" onClick={capturePhoto} className="bg-primary">Capture</Button>
+                                        <Button type="button" variant="outline" onClick={stopCamera}>Cancel</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                                        <Camera className="w-8 h-8 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <Button type="button" variant="outline" onClick={startCamera} className="gap-2">
+                                            <Camera className="w-4 h-4" /> Take Photo
+                                        </Button>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                id="dialog-file-upload"
+                                                onChange={handleFileUpload}
+                                            />
+                                            <Button type="button" variant="outline" onClick={() => document.getElementById('dialog-file-upload')?.click()} className="gap-2">
+                                                <Upload className="w-4 h-4" /> Upload File
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -208,7 +336,61 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubjectsOpen, setIsSubjectsOpen] = useState(false);
     const [data, setData] = useState({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '', department: '', subjects: [] as string[] });
+    const [image, setImage] = useState<string | null>(null);
+    const [isCameraActive, setIsCameraActive] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const queryClient = useQueryClient();
+
+    const startCamera = async () => {
+        try {
+            setIsCameraActive(true);
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            toast.error("Could not access camera");
+            setIsCameraActive(false);
+        }
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/jpeg');
+                setImage(imageData);
+                stopCamera();
+            }
+        }
+    };
+
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraActive(false);
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const { data: subjectsList = [] } = useQuery({
         queryKey: ['institution-subjects-list', institutionId],
@@ -273,6 +455,27 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
             console.log('Generated Profile ID:', profileId);
 
             // Prepare staff profile data
+            let imageUrl = null;
+            if (image) {
+                console.log('Uploading staff photo...');
+                const blob = await fetch(image).then(res => res.blob());
+                const fileName = `${profileId}_${Date.now()}.jpg`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('student-photos')
+                    .upload(fileName, blob);
+
+                if (uploadError) {
+                    console.error('Storage upload error:', uploadError);
+                    throw uploadError;
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('student-photos')
+                    .getPublicUrl(fileName);
+                imageUrl = publicUrl;
+                console.log('Photo uploaded. URL:', imageUrl);
+            }
+
             const profileData = {
                 id: profileId,
                 email: data.email,
@@ -282,7 +485,8 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
                 staff_id: data.staffId,
                 department: data.department || null,
                 phone: data.phone || null,
-                date_of_birth: data.dob || null
+                date_of_birth: data.dob || null,
+                image_url: imageUrl
             };
 
             console.log('Inserting profile with data:', profileData);
@@ -296,13 +500,20 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
 
             if (insertError) {
                 console.error('Profile insertion error:', insertError);
-                console.error('Error details:', {
-                    message: insertError.message,
-                    details: insertError.details,
-                    hint: insertError.hint,
-                    code: insertError.code
-                });
                 throw new Error(`Failed to create profile: ${insertError.message}`);
+            }
+
+            // Generate and save face embedding if image exists
+            if (imageUrl) {
+                try {
+                    console.log('Triggering embedding generation...');
+                    const { data: embeddingResponse, error: embeddingError } = await supabase.functions.invoke('generate-face-embedding', {
+                        body: { imageUrl, userId: profileId, label: data.name }
+                    });
+                    if (embeddingError) console.warn('Embedding generation background error:', embeddingError);
+                } catch (e) {
+                    console.warn('Embedding background trigger failed (non-critical):', e);
+                }
             }
 
             console.log('Profile created successfully:', newProfile);
@@ -337,6 +548,54 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
             <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Add Staff</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                    {/* Photo Capture Section */}
+                    <div className="md:col-span-2 space-y-2">
+                        <Label>Staff Photo (for Face Recognition)</Label>
+                        <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-lg bg-muted/30">
+                            {image ? (
+                                <div className="relative">
+                                    <img src={image} alt="Staff Preview" className="w-32 h-32 object-cover rounded-full border-2 border-primary" />
+                                    <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                        onClick={() => setImage(null)}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            ) : isCameraActive ? (
+                                <div className="relative w-full max-w-[300px]">
+                                    <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg border shadow-sm" />
+                                    <canvas ref={canvasRef} className="hidden" />
+                                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
+                                        <Button size="sm" onClick={capturePhoto} className="bg-primary text-white">Capture</Button>
+                                        <Button size="sm" variant="secondary" onClick={stopCamera}>Cancel</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+                                        <Upload className="w-8 h-8 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button onClick={startCamera} variant="outline" type="button">Start Camera</Button>
+                                        <Button variant="ghost" type="button" onClick={() => (document.getElementById('staff-image-upload') as HTMLInputElement).click()}>
+                                            Upload File
+                                        </Button>
+                                        <input
+                                            id="staff-image-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleFileUpload}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder="e.g. Sarah Smith" /></div>
                     <div className="space-y-2"><Label>Staff ID *</Label><Input value={data.staffId} onChange={e => setData({ ...data, staffId: e.target.value })} placeholder="e.g. STF-2024-005" /></div>
                     <div className="space-y-2">

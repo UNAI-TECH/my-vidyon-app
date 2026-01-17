@@ -58,6 +58,7 @@ import { ReviewSubmission } from "./pages/faculty/ReviewSubmission";
 import { UpdateAssignment } from "./pages/faculty/UpdateAssignment";
 import { StudentProfile } from "./pages/faculty/StudentProfile";
 import { FacultyCalendar } from "./pages/faculty/FacultyCalendar";
+import { FacultyScanAttendance } from "./pages/faculty/FacultyScanAttendance";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -79,6 +80,8 @@ import { InstitutionTimetable } from "./pages/institution/InstitutionTimetable";
 import { InstitutionTimetableEdit } from "./pages/institution/InstitutionTimetableEdit";
 
 import { InstitutionFacultyAssigning } from "./pages/institution/InstitutionFacultyAssigning";
+import { InstitutionStaffAttendance } from "./pages/institution/InstitutionStaffAttendance";
+import { FaceRegistration } from "./pages/institution/FaceRegistration";
 import { InstitutionProvider } from "@/context/InstitutionContext";
 
 // Parent Pages
@@ -178,6 +181,7 @@ const App = () => {
                   <Route path="/faculty/timetable" element={<ProtectedRoute allowedRoles={['faculty']}><TimetableManagement /></ProtectedRoute>} />
                   <Route path="/faculty/review-submission" element={<ProtectedRoute allowedRoles={['faculty']}><ReviewSubmission /></ProtectedRoute>} />
                   <Route path="/faculty/settings" element={<ProtectedRoute allowedRoles={['faculty']}><FacultySettings /></ProtectedRoute>} />
+                  <Route path="/faculty/scan-attendance" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyScanAttendance /></ProtectedRoute>} />
                   <Route path="/faculty/calendar" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyCalendar /></ProtectedRoute>} />
 
                   {/* Institution Routes */}
@@ -198,6 +202,7 @@ const App = () => {
                   <Route path="/institution/timetable/edit/:facultyId" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionTimetableEdit /></ProtectedRoute>} />
                   <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAnalytics /></ProtectedRoute>} />
                   <Route path="/institution/reports" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionReports /></ProtectedRoute>} />
+                  <Route path="/institution/staff-attendance" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionStaffAttendance /></ProtectedRoute>} />
                   <Route path="/institution/settings" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionSettings /></ProtectedRoute>} />
 
                   {/* Parent Routes */}

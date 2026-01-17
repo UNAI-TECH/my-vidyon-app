@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserPlus, ArrowLeft, Save } from 'lucide-react';
+import { UserPlus, ArrowLeft, Save, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import * as faceapi from 'face-api.js';
 
 export function InstitutionAddStudent() {
     const navigate = useNavigate();
@@ -44,6 +46,67 @@ export function InstitutionAddStudent() {
         parentEmail: ''
     });
 
+    const [image, setImage] = useState<string | null>(null);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+    const loadModels = async () => {
+        try {
+            await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+                faceapi.nets.faceRecognitionNet.loadFromUri('/models')
+            ]);
+            setModelsLoaded(true);
+        } catch (error) {
+            console.error('Failed to load face-api models:', error);
+        }
+    };
+
+    const startCamera = async () => {
+        setIsCameraOpen(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) videoRef.current.srcObject = stream;
+        } catch (error) {
+            toast.error('Could not access camera');
+        }
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const context = canvasRef.current.getContext('2d');
+            if (context) {
+                canvasRef.current.width = videoRef.current.videoWidth;
+                canvasRef.current.height = videoRef.current.videoHeight;
+                context.drawImage(videoRef.current, 0, 0);
+                setImage(canvasRef.current.toDataURL('image/jpeg'));
+                stopCamera();
+            }
+        }
+    };
+
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+        setIsCameraOpen(false);
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -54,13 +117,73 @@ export function InstitutionAddStudent() {
         setIsLoading(true);
 
         try {
-            // Mock API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            console.log('Submitting Student Data:', formData);
+            let imageUrl = null;
+            let embedding = null;
+
+            // 1. Generate Embedding if image exists
+            if (image) {
+                if (!modelsLoaded) await loadModels();
+                const img = await faceapi.fetchImage(image);
+                const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+                if (detections) {
+                    embedding = Array.from(detections.descriptor);
+                } else {
+                    toast.warning('No face detected in the photo. Verification might not work.');
+                }
+
+                // 2. Upload to Supabase Storage
+                const fileName = `student_${Date.now()}.jpg`;
+                const byteString = atob(image.split(',')[1]);
+                const mimeString = image.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+                const blob = new Blob([ab], { type: mimeString });
+
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('student-photos')
+                    .upload(fileName, blob);
+
+                if (uploadError) throw uploadError;
+                const { data: { publicUrl } } = supabase.storage.from('student-photos').getPublicUrl(fileName);
+                imageUrl = publicUrl;
+            }
+
+            // 3. Save Student Record
+            const { data: student, error: studentError } = await supabase
+                .from('students')
+                .insert({
+                    name: `${formData.firstName} ${formData.lastName}`,
+                    email: formData.email,
+                    register_number: formData.admissionNumber,
+                    class_name: formData.class,
+                    section: formData.section,
+                    parent_name: formData.parentName,
+                    parent_phone: formData.parentPhone,
+                    dob: formData.dob,
+                    gender: formData.gender,
+                    image_url: imageUrl,
+                    institution_id: (await supabase.auth.getUser()).data.user?.user_metadata?.institution_id
+                })
+                .select()
+                .single();
+
+            if (studentError) throw studentError;
+
+            // 4. Save Embedding
+            if (embedding && student) {
+                await supabase.from('face_embeddings').insert({
+                    user_id: student.id, // Using student ID for lookup
+                    embedding: embedding,
+                    label: student.name
+                });
+            }
+
             toast.success('Student added successfully!');
             navigate('/institution/users');
-        } catch (error) {
-            toast.error('Failed to add student. Please try again.');
+        } catch (error: any) {
+            console.error('Error adding student:', error);
+            toast.error(error.message || 'Failed to add student');
         } finally {
             setIsLoading(false);
         }
@@ -121,6 +244,62 @@ export function InstitutionAddStudent() {
                                 <div className="space-y-2">
                                     <Label htmlFor="bloodGroup">Blood Group</Label>
                                     <Input id="bloodGroup" name="bloodGroup" value={formData.bloodGroup} onChange={handleChange} placeholder="O+" />
+                                </div>
+
+                                {/* STUDENT IMAGE SECTION */}
+                                <div className="space-y-2 md:col-span-2 border-t pt-4">
+                                    <Label>Student Photo (For Camera Verification)</Label>
+                                    <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-lg">
+                                        {image ? (
+                                            <div className="relative w-48 aspect-square rounded-lg overflow-hidden shadow-md">
+                                                <img src={image} alt="Student" className="w-full h-full object-cover" />
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute top-2 right-2 rounded-full"
+                                                    onClick={() => setImage(null)}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        ) : isCameraOpen ? (
+                                            <div className="flex flex-col items-center gap-4">
+                                                <div className="w-64 aspect-video bg-black rounded-lg overflow-hidden relative">
+                                                    <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
+                                                    <canvas ref={canvasRef} className="hidden" />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" onClick={capturePhoto} className="bg-institution">Capture</Button>
+                                                    <Button type="button" variant="outline" onClick={stopCamera}>Cancel</Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+                                                    <Camera className="w-10 h-10 text-muted-foreground" />
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">No photo captured</p>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="outline" onClick={startCamera} className="gap-2">
+                                                        <Camera className="w-4 h-4" /> Take Photo
+                                                    </Button>
+                                                    <div className="relative">
+                                                        <Input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            id="file-upload"
+                                                            onChange={handleFileUpload}
+                                                        />
+                                                        <Button type="button" variant="outline" onClick={() => document.getElementById('file-upload')?.click()} className="gap-2">
+                                                            <Upload className="w-4 h-4" /> Upload File
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

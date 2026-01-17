@@ -143,23 +143,45 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
         staleTime: 30 * 1000, // 30 seconds for today's schedule
     });
 
-    // 5. Aggregate Dashboard Stats
+    // 5. Today's Attendance Count
+    const { data: todayAttendanceCount = 0 } = useQuery({
+        queryKey: ['faculty-today-attendance', institutionId],
+        queryFn: async () => {
+            if (!institutionId) return 0;
+            const today = new Date().toISOString().split('T')[0];
+
+            const { count } = await supabase
+                .from('student_attendance')
+                .select('id', { count: 'exact', head: true })
+                .eq('institution_id', institutionId)
+                .eq('attendance_date', today)
+                .eq('status', 'present');
+
+            return count || 0;
+        },
+        enabled: !!institutionId,
+        staleTime: 30 * 1000,
+    });
+
+    // 6. Aggregate Dashboard Stats
     const stats: DashboardStats = {
         totalStudents,
         myStudents,
         activeSubjects: assignedSubjects.length,
         todayClasses: todaySchedule.length,
-        pendingReviews: 0, // TODO: Implement when assignments table exists
-        avgAttendance: '87%', // TODO: Implement when attendance table exists
+        pendingReviews: 0,
+        avgAttendance: totalStudents > 0
+            ? `${Math.round((todayAttendanceCount / totalStudents) * 100)}%`
+            : '0%',
     };
 
-    // 6. Real-time Subscriptions
+    // 7. Real-time Subscriptions
     useEffect(() => {
         if (!facultyId || !institutionId) return;
 
         const channel = supabase
             .channel('faculty-dashboard-realtime')
-            // Student count changes
+            // ... (previous student/subject/slots/staff subscriptions)
             .on(
                 'postgres_changes',
                 {
@@ -171,6 +193,30 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
                 () => {
                     queryClient.invalidateQueries({ queryKey: ['faculty-total-students'] });
                     queryClient.invalidateQueries({ queryKey: ['faculty-my-students'] });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'student_attendance',
+                    filter: `institution_id=eq.${institutionId}`,
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['faculty-today-attendance'] });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'staff_attendance',
+                    filter: `institution_id=eq.${institutionId}`,
+                },
+                () => {
+                    // Logic to refresh staff stats if needed
                 }
             )
             // Subject assignments change

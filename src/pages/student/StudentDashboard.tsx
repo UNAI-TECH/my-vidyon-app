@@ -84,7 +84,46 @@ export function StudentDashboard() {
     staleTime: 1000 * 60,
   });
 
-  // 3. Mock Queries (Wrapped in useQuery for caching consistency)
+  // 3. Fetch Today's Attendance Status (Real)
+  const { data: todayAttendance } = useQuery({
+    queryKey: ['student-today-attendance', studentProfile?.id],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('student_attendance')
+        .select('*')
+        .eq('student_id', studentProfile?.id)
+        .eq('attendance_date', today)
+        .single();
+      return data;
+    },
+    enabled: !!studentProfile?.id,
+    staleTime: 1000 * 30,
+  });
+
+  // 4. Fetch Overall Attendance Rate (Real)
+  const { data: attendanceRate = 0 } = useQuery({
+    queryKey: ['student-attendance-rate', studentProfile?.id],
+    queryFn: async () => {
+      if (!studentProfile?.id) return 0;
+
+      const { count: totalDays } = await supabase
+        .from('student_attendance')
+        .select('*', { count: 'exact', head: true })
+        .eq('student_id', studentProfile.id);
+
+      const { count: presentDays } = await supabase
+        .from('student_attendance')
+        .select('*', { count: 'exact', head: true })
+        .eq('student_id', studentProfile.id)
+        .eq('status', 'present');
+
+      return totalDays ? Math.round((presentDays || 0) / totalDays * 100) : 0;
+    },
+    enabled: !!studentProfile?.id,
+  });
+
+  // 5. Mock Queries (Wrapped in useQuery for caching consistency)
   const { data: assignments = mockAssignments } = useQuery({
     queryKey: ['student-assignments'],
     queryFn: () => Promise.resolve(mockAssignments),
@@ -97,9 +136,9 @@ export function StudentDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // 4. Realtime Subscription
+  // 6. Realtime Subscription
   useEffect(() => {
-    if (!user?.email) return;
+    if (!user?.email || !studentProfile?.id) return;
 
     const channel = supabase
       .channel('student-dashboard-realtime')
@@ -107,7 +146,12 @@ export function StudentDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: `email=eq.${user.email}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['student-profile'] });
       })
-      // Listen for subject changes (if added to class)
+      // Listen for attendance changes
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_attendance', filter: `student_id=eq.${studentProfile.id}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['student-today-attendance'] });
+        queryClient.invalidateQueries({ queryKey: ['student-attendance-rate'] });
+      })
+      // Listen for subject changes
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subjects' }, () => {
         queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
       })
@@ -116,7 +160,7 @@ export function StudentDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.email, queryClient]);
+  }, [user?.email, studentProfile?.id, queryClient]);
 
 
   return (
@@ -136,12 +180,12 @@ export function StudentDashboard() {
           change="Enrolled Courses"
         />
         <StatCard
-          title="Attendance Rate"
-          value="92%"
+          title="Attendance Status"
+          value={todayAttendance?.status === 'present' ? 'PRESENT' : 'NOT MARKED'}
           icon={CheckCircle}
-          iconColor="text-success"
-          change="+3% this month"
-          changeType="positive"
+          iconColor={todayAttendance?.status === 'present' ? 'text-success' : 'text-muted-foreground'}
+          change={`Overall Rate: ${attendanceRate}%`}
+          changeType={attendanceRate > 75 ? 'positive' : 'negative'}
         />
         <StatCard
           title="Overall Percentage"

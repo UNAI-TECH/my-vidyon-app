@@ -49,21 +49,24 @@ export function InstitutionDashboard() {
     queryFn: async () => {
       if (!user?.institutionId) return { students: 0, teachers: 0, classes: 0 };
 
-      const [studentsReq, teachersReq, classesReq] = await Promise.all([
+      const [studentsReq, teachersReq, classesReq, studentAttendanceReq, staffAttendanceReq] = await Promise.all([
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('role', 'faculty'),
-        // Classes join via groups
-        supabase.from('classes').select('id, groups!inner(institution_id)', { count: 'exact', head: true }).eq('groups.institution_id', user.institutionId)
+        supabase.from('classes').select('id, groups!inner(institution_id)', { count: 'exact', head: true }).eq('groups.institution_id', user.institutionId),
+        supabase.from('student_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', new Date().toISOString().split('T')[0]).eq('status', 'present'),
+        supabase.from('staff_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', new Date().toISOString().split('T')[0]).eq('status', 'present')
       ]);
 
       return {
         students: studentsReq.count || 0,
         teachers: teachersReq.count || 0,
         classes: classesReq.count || 0,
+        presence: (studentAttendanceReq.count || 0) + (staffAttendanceReq.count || 0),
+        totalPeople: (studentsReq.count || 0) + (teachersReq.count || 0)
       };
     },
     enabled: !!user?.institutionId,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 1000 * 30, // 30 seconds
   });
 
   // 2. Fetch Recent Admissions
@@ -103,6 +106,12 @@ export function InstitutionDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `institution_id=eq.${user.institutionId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['institution-stats'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_attendance', filter: `institution_id=eq.${user.institutionId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['institution-stats'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_attendance', filter: `institution_id=eq.${user.institutionId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['institution-stats'] });
+      })
       .subscribe();
 
     return () => {
@@ -127,6 +136,8 @@ export function InstitutionDashboard() {
     },
   ];
 
+  const attendanceRate = stats?.totalPeople ? Math.round((stats.presence / stats.totalPeople) * 100) : 0;
+
   return (
     <InstitutionLayout>
       <PageHeader
@@ -137,12 +148,19 @@ export function InstitutionDashboard() {
       {/* Stats Grid */}
       <div className="stats-grid mb-6 sm:mb-8">
         <StatCard
+          title="Daily Attendance"
+          value={`${attendanceRate}%`}
+          icon={TrendingUp}
+          iconColor="text-success"
+          change={`${stats?.presence || 0} Present today`}
+          changeType="positive"
+        />
+        <StatCard
           title="Total Students"
           value={stats?.students || 0}
           icon={GraduationCap}
           iconColor="text-institution"
           change="Real-time count"
-          changeType="neutral"
         />
         <StatCard
           title="Total Teachers"
@@ -157,14 +175,6 @@ export function InstitutionDashboard() {
           icon={Building}
           iconColor="text-institution"
           change="Across all groups"
-        />
-        <StatCard
-          title="Revenue (YTD)"
-          value="₹12.5M"
-          icon={IndianRupee}
-          iconColor="text-success"
-          change="+15% vs last year"
-          changeType="positive"
         />
       </div>
 

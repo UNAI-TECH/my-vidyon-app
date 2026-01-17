@@ -22,6 +22,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 const students = [
     { id: 1, rollNo: '101', name: 'John Smith', class: 'Grade 10-A', lastAttendance: '92%', status: 'present' },
@@ -32,48 +37,131 @@ const students = [
 ];
 
 export function FacultyAttendance() {
-    const [attendance, setAttendance] = useState(students);
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent'>('all');
+    const [searchTerm, setSearchTerm] = useState('');
     const [newStudent, setNewStudent] = useState({
         name: '',
         rollNo: '',
         class: 'Grade 10-A'
     });
 
-    const toggleStatus = (id: number) => {
-        setAttendance(prev => prev.map(s =>
-            s.id === id ? { ...s, status: s.status === 'present' ? 'absent' : 'present' } : s
-        ));
+    const institutionId = user?.institutionId;
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Fetch Students & Their Attendance for today
+    const { data: students = [], isLoading } = useQuery({
+        queryKey: ['faculty-attendance-list', institutionId, today],
+        queryFn: async () => {
+            if (!institutionId) return [];
+
+            // Get students
+            const { data: studentData, error: studentError } = await supabase
+                .from('students')
+                .select('*')
+                .eq('institution_id', institutionId);
+
+            if (studentError) throw studentError;
+
+            // Get today's attendance
+            const { data: attendanceData, error: attendanceError } = await supabase
+                .from('student_attendance')
+                .select('*')
+                .eq('institution_id', institutionId)
+                .eq('attendance_date', today);
+
+            if (attendanceError) throw attendanceError;
+
+            // Map attendance to students
+            return (studentData || []).map(student => {
+                const att = attendanceData?.find(a => a.student_id === student.id);
+                return {
+                    ...student,
+                    status: att ? att.status : 'absent',
+                    attendanceId: att?.id
+                };
+            });
+        },
+        enabled: !!institutionId,
+    });
+
+    // 2. Multi-table Real-time Sync
+    useEffect(() => {
+        if (!institutionId) return;
+
+        const channel = supabase.channel('faculty-attendance-live')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'student_attendance',
+                filter: `institution_id=eq.${institutionId}`
+            }, () => {
+                queryClient.invalidateQueries({ queryKey: ['faculty-attendance-list'] });
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [institutionId, queryClient]);
+
+    const toggleStatus = async (studentId: string, currentStatus: string) => {
+        const newStatus = currentStatus === 'present' ? 'absent' : 'present';
+
+        try {
+            if (newStatus === 'present') {
+                const { error } = await supabase
+                    .from('student_attendance')
+                    .upsert({
+                        student_id: studentId,
+                        institution_id: institutionId,
+                        attendance_date: today,
+                        status: 'present'
+                    });
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('student_attendance')
+                    .delete()
+                    .eq('student_id', studentId)
+                    .eq('attendance_date', today);
+                if (error) throw error;
+            }
+            toast.success(`Marked as ${newStatus}`);
+            queryClient.invalidateQueries({ queryKey: ['faculty-attendance-list'] });
+        } catch (err: any) {
+            toast.error(err.message);
+        }
     };
 
-    const handleAddStudent = () => {
+    const handleAddStudent = async () => {
         if (!newStudent.name || !newStudent.rollNo) return;
-
-        const student = {
-            id: Math.max(...attendance.map(s => s.id), 0) + 1,
-            rollNo: newStudent.rollNo,
-            name: newStudent.name,
-            class: newStudent.class,
-            lastAttendance: '0%', // Default for new student
-            status: 'present' // Default to present
-        };
-
-        setAttendance([...attendance, student]);
+        // ... handled via Institution Dashboard usually, but keeping local logic if needed
+        toast.info("Use Institution Dashboard to manage registered students");
         setIsDialogOpen(false);
-        setNewStudent({ name: '', rollNo: '', class: 'Grade 10-A' });
     };
 
-    // Filter students based on selected status
-    const filteredAttendance = filterStatus === 'all'
-        ? attendance
-        : attendance.filter(s => s.status === filterStatus);
+    // Filter students
+    const filteredAttendance = students.filter(s => {
+        const matchesStatus = filterStatus === 'all' || s.status === filterStatus;
+        const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.register_number?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesStatus && matchesSearch;
+    });
 
     const columns = [
-        { key: 'rollNo', header: 'Roll No.' },
+        { key: 'register_number', header: 'Reg No.' },
         { key: 'name', header: 'Student Name' },
-        { key: 'class', header: 'Class' },
-        { key: 'lastAttendance', header: 'Overall Attendance' },
+        { key: 'class_name', header: 'Class' },
+        {
+            key: 'lastAttendance',
+            header: 'Today',
+            render: (item: any) => (
+                <span className="text-xs text-muted-foreground">
+                    {item.status === 'present' ? 'Recognized' : 'Pending'}
+                </span>
+            )
+        },
         {
             key: 'status',
             header: 'Status',
@@ -91,7 +179,7 @@ export function FacultyAttendance() {
                     <Button
                         size="sm"
                         variant={item.status === 'present' ? 'default' : 'outline'}
-                        onClick={() => toggleStatus(item.id)}
+                        onClick={() => toggleStatus(item.id, item.status)}
                         className="h-8 w-8 p-0"
                     >
                         <CheckCircle className="h-4 w-4" />
@@ -99,7 +187,7 @@ export function FacultyAttendance() {
                     <Button
                         size="sm"
                         variant={item.status === 'absent' ? 'destructive' : 'outline'}
-                        onClick={() => toggleStatus(item.id)}
+                        onClick={() => toggleStatus(item.id, item.status)}
                         className="h-8 w-8 p-0"
                     >
                         <XCircle className="h-4 w-4" />
@@ -208,30 +296,32 @@ export function FacultyAttendance() {
                             type="text"
                             placeholder="Search students..."
                             className="pl-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Subject: <strong>Mathematics</strong></span>
+                        <span>Institution: <strong>Live View</strong></span>
                         <span>•</span>
-                        <span>Date: <strong>Dec 20, 2025</strong></span>
+                        <span>Date: <strong>{new Date().toLocaleDateString()}</strong></span>
                     </div>
                 </div>
 
-                <DataTable columns={columns} data={filteredAttendance} />
+                <DataTable columns={columns} data={filteredAttendance} loading={isLoading} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="dashboard-card bg-success/5 border-success/20">
                     <h4 className="text-sm font-medium text-success mb-1">Present</h4>
-                    <p className="text-2xl font-bold text-success">{attendance.filter(s => s.status === 'present').length}</p>
+                    <p className="text-2xl font-bold text-success">{students.filter(s => s.status === 'present').length}</p>
                 </div>
                 <div className="dashboard-card bg-destructive/5 border-destructive/20">
                     <h4 className="text-sm font-medium text-destructive mb-1">Absent</h4>
-                    <p className="text-2xl font-bold text-destructive">{attendance.filter(s => s.status === 'absent').length}</p>
+                    <p className="text-2xl font-bold text-destructive">{students.filter(s => s.status === 'absent').length}</p>
                 </div>
                 <div className="dashboard-card bg-info/5 border-info/20">
                     <h4 className="text-sm font-medium text-info mb-1">Total Strength</h4>
-                    <p className="text-2xl font-bold text-info">{attendance.length}</p>
+                    <p className="text-2xl font-bold text-info">{students.length}</p>
                 </div>
             </div>
         </FacultyLayout>
