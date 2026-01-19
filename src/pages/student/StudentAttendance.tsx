@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect } from 'react';
+import { format } from 'date-fns';
 
 export function StudentAttendance() {
   const { t } = useTranslation();
@@ -21,25 +22,44 @@ export function StudentAttendance() {
   const { data: studentProfile } = useQuery({
     queryKey: ['student-profile', user?.email],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!user?.email) return null;
+      console.log('🔍 [ATTENDANCE-DIAG] Fetching profile for email:', user.email);
+      const { data, error } = await supabase
         .from('students')
         .select('*')
-        .eq('email', user?.email)
-        .single();
+        .ilike('email', user.email.trim())
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ [ATTENDANCE-DIAG] Profile Fetch Error:', error);
+        return null;
+      }
+      console.log('✅ [ATTENDANCE-DIAG] Profile Found:', data ? { id: data.id, name: data.name, email: data.email } : 'NONE');
       return data;
     },
     enabled: !!user?.email,
   });
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   // 2. Fetch Attendance History
   const { data: history = [], isLoading } = useQuery({
-    queryKey: ['student-attendance-history', studentProfile?.id],
+    queryKey: ['student-attendance-history', studentProfile?.id, today],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!studentProfile?.id) return [];
+      console.log('🔍 [ATTENDANCE-DIAG] Fetching history for student_id:', studentProfile.id);
+      const { data, error } = await supabase
         .from('student_attendance')
         .select('*')
         .eq('student_id', studentProfile?.id)
         .order('attendance_date', { ascending: false });
+
+      if (error) {
+        console.error('❌ [ATTENDANCE-DIAG] History Fetch Error:', error);
+        return [];
+      }
+      console.log('✅ [ATTENDANCE-DIAG] History Records Found:', data?.length || 0);
+
       return (data || []).map(record => ({
         id: record.id,
         date: new Date(record.attendance_date).toLocaleDateString(),
@@ -71,7 +91,7 @@ export function StudentAttendance() {
   }, [studentProfile?.id, queryClient]);
 
   // 4. Calculate Stats
-  const presentCount = history.filter(h => h.status === 'present').length;
+  const presentCount = history.filter(h => h.status === 'present' || h.status === 'late').length;
   const absentCount = history.filter(h => h.status === 'absent').length;
   const attendanceRate = history.length > 0 ? Math.round((presentCount / history.length) * 100) : 0;
 

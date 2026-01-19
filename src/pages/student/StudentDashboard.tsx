@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
@@ -11,6 +12,7 @@ import { DonutChart } from '@/components/charts/DonutChart';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { supabase } from '@/lib/supabase';
+import { useWebSocketContext } from '@/context/WebSocketContext';
 import {
   BookOpen,
   Clock,
@@ -51,12 +53,31 @@ export function StudentDashboard() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { subscribeToTable } = useWebSocketContext();
 
   // 1. Fetch Student Details (Class Info) -> Then Fetch Subjects
   const { data: studentProfile } = useQuery({
     queryKey: ['student-profile', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('students').select('*').eq('email', user?.email).single();
+      if (!user?.email) return null;
+      console.log('🔍 [DASHBOARD] Fetching profile for email:', user.email);
+
+      const query = supabase
+        .from('students')
+        .select('*')
+        .ilike('email', user.email.trim());
+
+      if (user.institutionId) {
+        query.eq('institution_id', user.institutionId);
+      }
+
+      const { data, error } = await query.maybeSingle();
+
+      if (error) {
+        console.error('❌ [DASHBOARD] Profile Fetch Error:', error);
+        return null;
+      }
+      console.log('✅ [DASHBOARD] Profile Found:', data ? { id: data.id, name: data.name, email: data.email } : 'NONE');
       return data;
     },
     enabled: !!user?.email,
@@ -85,27 +106,38 @@ export function StudentDashboard() {
   });
 
   // 3. Fetch Today's Attendance Status (Real)
-  const { data: todayAttendance } = useQuery({
-    queryKey: ['student-today-attendance', studentProfile?.id],
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const isAfterAbsentThreshold = new Date().getHours() >= 10;
+
+  const { data: todayAttendance, refetch: refetchTodayAttendance } = useQuery({
+    queryKey: ['student-today-attendance', studentProfile?.id, today],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
+      if (!studentProfile?.id) return null;
+      console.log('🔍 [DASHBOARD] Fetching today attendance for student_id:', studentProfile.id);
+
+      const { data, error } = await supabase
         .from('student_attendance')
         .select('*')
-        .eq('student_id', studentProfile?.id)
+        .eq('student_id', studentProfile.id)
         .eq('attendance_date', today)
-        .single();
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ [DASHBOARD] Attendance Fetch Error:', error);
+        throw error;
+      }
+      console.log('✅ [DASHBOARD] Today Attendance Record:', data);
       return data;
     },
     enabled: !!studentProfile?.id,
-    staleTime: 1000 * 30,
   });
 
   // 4. Fetch Overall Attendance Rate (Real)
   const { data: attendanceRate = 0 } = useQuery({
-    queryKey: ['student-attendance-rate', studentProfile?.id],
+    queryKey: ['student-attendance-rate', studentProfile?.id, today],
     queryFn: async () => {
       if (!studentProfile?.id) return 0;
+      console.log('🔍 [DASHBOARD] Calculating attendance rate for:', studentProfile.id);
 
       const { count: totalDays } = await supabase
         .from('student_attendance')
@@ -116,8 +148,9 @@ export function StudentDashboard() {
         .from('student_attendance')
         .select('*', { count: 'exact', head: true })
         .eq('student_id', studentProfile.id)
-        .eq('status', 'present');
+        .in('status', ['present', 'late']);
 
+      console.log('📊 [DASHBOARD] Stats:', { presentDays, totalDays });
       return totalDays ? Math.round((presentDays || 0) / totalDays * 100) : 0;
     },
     enabled: !!studentProfile?.id,
@@ -136,31 +169,41 @@ export function StudentDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // 6. Realtime Subscription
+  // 6. Realtime Subscription using WebSocketContext
   useEffect(() => {
-    if (!user?.email || !studentProfile?.id) return;
+    if (!user?.email) return;
 
-    const channel = supabase
-      .channel('student-dashboard-realtime')
-      // Listen for profile/class changes
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: `email=eq.${user.email}` }, () => {
-        queryClient.invalidateQueries({ queryKey: ['student-profile'] });
-      })
-      // Listen for attendance changes
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_attendance', filter: `student_id=eq.${studentProfile.id}` }, () => {
+    console.log('🔌 [DASHBOARD] Setting up WebSocket subscriptions...');
+
+    // Subscribe to student profile changes
+    const unsubProfile = subscribeToTable('students', (payload) => {
+      console.log('📡 [DASHBOARD] Student profile update detected:', payload);
+      queryClient.invalidateQueries({ queryKey: ['student-profile', user.id] });
+    }, { filter: `email=eq.${user.email.toLowerCase()}` }); // Note: real-time filters are tricky with casing, hoping for lowercase in DB
+
+    let unsubAttendance = () => { };
+    if (studentProfile?.id) {
+      unsubAttendance = subscribeToTable('student_attendance', (payload) => {
+        console.log('📡 [DASHBOARD] Attendance update detected:', payload);
         queryClient.invalidateQueries({ queryKey: ['student-today-attendance'] });
         queryClient.invalidateQueries({ queryKey: ['student-attendance-rate'] });
-      })
-      // Listen for subject changes
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subjects' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
-      })
-      .subscribe();
+        refetchTodayAttendance();
+      }, { filter: `student_id=eq.${studentProfile.id}` });
+    }
+
+    // Subscribe to subjects
+    const unsubSubjects = subscribeToTable('subjects', () => {
+      console.log('📡 [DASHBOARD] Subjects update detected');
+      queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      console.log('🔌 [DASHBOARD] Cleaning up subscriptions');
+      unsubProfile();
+      unsubAttendance();
+      unsubSubjects();
     };
-  }, [user?.email, studentProfile?.id, queryClient]);
+  }, [user?.email, user?.id, studentProfile?.id, queryClient, subscribeToTable, refetchTodayAttendance]);
 
 
   return (
@@ -181,15 +224,24 @@ export function StudentDashboard() {
         />
         <StatCard
           title="Attendance Status"
-          value={todayAttendance?.status === 'present' ? 'PRESENT' : 'NOT MARKED'}
+          value={
+            todayAttendance?.status === 'present' ? 'PRESENT' :
+              todayAttendance?.status === 'late' ? 'LATE' :
+                todayAttendance?.status === 'absent' ? 'ABSENT' :
+                  (isAfterAbsentThreshold ? 'ABSENT' : 'NOT MARKED')
+          }
           icon={CheckCircle}
-          iconColor={todayAttendance?.status === 'present' ? 'text-success' : 'text-muted-foreground'}
+          iconColor={
+            todayAttendance?.status === 'present' ? 'text-success' :
+              todayAttendance?.status === 'late' ? 'text-warning' :
+                (todayAttendance?.status === 'absent' || (!todayAttendance && isAfterAbsentThreshold)) ? 'text-destructive' : 'text-muted-foreground'
+          }
           change={`Overall Rate: ${attendanceRate}%`}
-          changeType={attendanceRate > 75 ? 'positive' : 'negative'}
+          changeType={attendanceRate >= 75 ? 'positive' : 'negative'}
         />
         <StatCard
           title="Overall Percentage"
-          value="85%"
+          value={`${attendanceRate}%`}
           icon={TrendingUp}
           iconColor="text-primary"
           change="+2% from last term"
