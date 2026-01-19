@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
@@ -56,7 +57,19 @@ export function StudentDashboard() {
   const { data: studentProfile } = useQuery({
     queryKey: ['student-profile', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('students').select('*').eq('email', user?.email).single();
+      if (!user?.email) return null;
+      console.log('🔍 [DIAGNOSTIC] Fetching profile for email:', user.email);
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .ilike('email', user.email.trim())
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ [DIAGNOSTIC] Profile Fetch Error:', error);
+        return null;
+      }
+      console.log('✅ [DIAGNOSTIC] Profile Found:', data ? { id: data.id, name: data.name, email: data.email } : 'NONE');
       return data;
     },
     enabled: !!user?.email,
@@ -85,27 +98,38 @@ export function StudentDashboard() {
   });
 
   // 3. Fetch Today's Attendance Status (Real)
-  const { data: todayAttendance } = useQuery({
-    queryKey: ['student-today-attendance', studentProfile?.id],
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const isAfterAbsentThreshold = new Date().getHours() >= 10;
+
+  const { data: todayAttendance, refetch: refetchTodayAttendance } = useQuery({
+    queryKey: ['student-today-attendance', studentProfile?.id, today],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
+      if (!studentProfile?.id) return null;
+      console.log('🔍 [DIAGNOSTIC] Fetching today attendance for student_id:', studentProfile.id);
+
+      const { data, error } = await supabase
         .from('student_attendance')
         .select('*')
-        .eq('student_id', studentProfile?.id)
+        .eq('student_id', studentProfile.id)
         .eq('attendance_date', today)
-        .single();
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ [DIAGNOSTIC] Attendance Fetch Error:', error);
+        throw error;
+      }
+      console.log('✅ [DIAGNOSTIC] Today Attendance Record:', data);
       return data;
     },
     enabled: !!studentProfile?.id,
-    staleTime: 1000 * 30,
   });
 
   // 4. Fetch Overall Attendance Rate (Real)
   const { data: attendanceRate = 0 } = useQuery({
-    queryKey: ['student-attendance-rate', studentProfile?.id],
+    queryKey: ['student-attendance-rate', studentProfile?.id, today],
     queryFn: async () => {
       if (!studentProfile?.id) return 0;
+      console.log('🔍 [DIAGNOSTIC] Calculating attendance rate for:', studentProfile.id);
 
       const { count: totalDays } = await supabase
         .from('student_attendance')
@@ -116,8 +140,9 @@ export function StudentDashboard() {
         .from('student_attendance')
         .select('*', { count: 'exact', head: true })
         .eq('student_id', studentProfile.id)
-        .eq('status', 'present');
+        .in('status', ['present', 'late']);
 
+      console.log('📊 [DIAGNOSTIC] Stats:', { presentDays, totalDays });
       return totalDays ? Math.round((presentDays || 0) / totalDays * 100) : 0;
     },
     enabled: !!studentProfile?.id,
@@ -148,8 +173,10 @@ export function StudentDashboard() {
       })
       // Listen for attendance changes
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_attendance', filter: `student_id=eq.${studentProfile.id}` }, () => {
+        console.log('Realtime attendance update detected');
         queryClient.invalidateQueries({ queryKey: ['student-today-attendance'] });
         queryClient.invalidateQueries({ queryKey: ['student-attendance-rate'] });
+        refetchTodayAttendance();
       })
       // Listen for subject changes
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subjects' }, () => {
@@ -181,15 +208,24 @@ export function StudentDashboard() {
         />
         <StatCard
           title="Attendance Status"
-          value={todayAttendance?.status === 'present' ? 'PRESENT' : 'NOT MARKED'}
+          value={
+            todayAttendance?.status === 'present' ? 'PRESENT' :
+              todayAttendance?.status === 'late' ? 'LATE' :
+                todayAttendance?.status === 'absent' ? 'ABSENT' :
+                  (isAfterAbsentThreshold ? 'ABSENT' : 'NOT MARKED')
+          }
           icon={CheckCircle}
-          iconColor={todayAttendance?.status === 'present' ? 'text-success' : 'text-muted-foreground'}
+          iconColor={
+            todayAttendance?.status === 'present' ? 'text-success' :
+              todayAttendance?.status === 'late' ? 'text-warning' :
+                (todayAttendance?.status === 'absent' || (!todayAttendance && isAfterAbsentThreshold)) ? 'text-destructive' : 'text-muted-foreground'
+          }
           change={`Overall Rate: ${attendanceRate}%`}
-          changeType={attendanceRate > 75 ? 'positive' : 'negative'}
+          changeType={attendanceRate >= 75 ? 'positive' : 'negative'}
         />
         <StatCard
           title="Overall Percentage"
-          value="85%"
+          value={`${attendanceRate}%`}
           icon={TrendingUp}
           iconColor="text-primary"
           change="+2% from last term"

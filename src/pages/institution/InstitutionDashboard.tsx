@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -11,6 +12,7 @@ import { DonutChart } from '@/components/charts/DonutChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { Scan, UserCheck, Clock } from 'lucide-react';
 import {
   GraduationCap,
   Users,
@@ -43,18 +45,20 @@ export function InstitutionDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   // 1. Fetch Stats (Parallel)
   const { data: stats } = useQuery({
-    queryKey: ['institution-stats', user?.institutionId],
+    queryKey: ['institution-stats', user?.institutionId, today],
     queryFn: async () => {
-      if (!user?.institutionId) return { students: 0, teachers: 0, classes: 0 };
+      if (!user?.institutionId) return { students: 0, teachers: 0, classes: 0, presence: 0 };
 
       const [studentsReq, teachersReq, classesReq, studentAttendanceReq, staffAttendanceReq] = await Promise.all([
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('role', 'faculty'),
         supabase.from('classes').select('id, groups!inner(institution_id)', { count: 'exact', head: true }).eq('groups.institution_id', user.institutionId),
-        supabase.from('student_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', new Date().toISOString().split('T')[0]).eq('status', 'present'),
-        supabase.from('staff_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', new Date().toISOString().split('T')[0]).eq('status', 'present')
+        supabase.from('student_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).in('status', ['present', 'late']),
+        supabase.from('staff_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).in('status', ['present', 'late'])
       ]);
 
       return {
@@ -85,6 +89,51 @@ export function InstitutionDashboard() {
     staleTime: 1000 * 60,
   });
 
+  // 3. Fetch Recent Attendance (Real-time Feed)
+  const { data: recentAttendance, refetch: refetchAttendance } = useQuery({
+    queryKey: ['recent-attendance', user?.institutionId],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+
+      const [studentAtt, staffAtt] = await Promise.all([
+        supabase
+          .from('student_attendance')
+          .select('id, created_at, status, student:students(name, class_name)')
+          .eq('institution_id', user?.institutionId)
+          .eq('attendance_date', today)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('staff_attendance')
+          .select('id, created_at, status, staff:profiles(full_name)')
+          .eq('institution_id', user?.institutionId)
+          .eq('attendance_date', today)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      ]);
+
+      const combined = [
+        ...(studentAtt.data?.map((a: any) => ({
+          id: a.id,
+          created_at: a.created_at,
+          name: a.student?.name,
+          subtitle: a.student?.class_name,
+          type: 'Student'
+        })) || []),
+        ...(staffAtt.data?.map((a: any) => ({
+          id: a.id,
+          created_at: a.created_at,
+          name: a.staff?.full_name,
+          subtitle: 'Staff',
+          type: 'Faculty'
+        })) || [])
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+
+      return combined;
+    },
+    enabled: !!user?.institutionId,
+  });
+
   // 3. Compute Class Distribution (Simple Grouping from admissions for demo, ideal is aggregate query)
   // For now using mock until we write the complex aggregation content
   const classDistribution = [
@@ -108,9 +157,11 @@ export function InstitutionDashboard() {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_attendance', filter: `institution_id=eq.${user.institutionId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['institution-stats'] });
+        refetchAttendance();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_attendance', filter: `institution_id=eq.${user.institutionId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['institution-stats'] });
+        refetchAttendance();
       })
       .subscribe();
 
@@ -188,8 +239,110 @@ export function InstitutionDashboard() {
         </div>
         <div className="dashboard-card p-4 sm:p-6">
           <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Class Enrollment Distribution</h3>
-          <div className="h-[250px]">
-            <DonutChart data={classDistribution} height={250} />
+        </div>
+      </div>
+
+      {/* Live Attendance Feed Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
+        <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Scan className="w-5 h-5 text-institution animate-pulse" />
+              <h3 className="font-semibold text-sm sm:text-base">Live Attendance Stream</h3>
+            </div>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-institution/5 border-institution/20 text-institution">
+              Camera Bridge Active
+            </Badge>
+          </div>
+
+          <div className="space-y-4">
+            {recentAttendance && recentAttendance.length > 0 ? (
+              recentAttendance.map((record) => (
+                <div key={record.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 hover:border-institution/30 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-institution/10 flex items-center justify-center text-institution font-bold">
+                      {record.name?.[0] || '?'}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold">{record.name}</h4>
+                      <p className="text-xs text-muted-foreground">{record.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1.5 text-success font-medium text-xs mb-1">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Present
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase font-medium">
+                      <Clock className="w-3 h-3" />
+                      {new Date(record.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Scan className="w-8 h-8 text-muted-foreground opacity-20" />
+                </div>
+                <p className="text-sm text-muted-foreground">Waiting for camera recognitions...</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-1 italic">Real-time stream will appear here</p>
+              </div>
+            )}
+
+            {recentAttendance && recentAttendance.length > 0 && (
+              <button
+                onClick={() => navigate('/institution/reports')}
+                className="w-full py-2.5 text-xs font-medium text-muted-foreground hover:text-institution transition-colors border-t border-dashed border-border mt-2"
+              >
+                View Full Attendance Report
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="dashboard-card p-4 sm:p-6 h-fit">
+          <h3 className="font-semibold mb-4 text-sm sm:text-base flex items-center gap-2">
+            <Building className="w-4 h-4 text-faculty" />
+            Quick Shortcuts
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate('/institution/face-registration')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-institution/5 hover:border-institution/20 transition-all group"
+            >
+              <div className="w-10 h-10 rounded-full bg-institution/10 flex items-center justify-center text-institution mb-2 group-hover:scale-110 transition-transform">
+                <Scan className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Register Face</span>
+            </button>
+            <button
+              onClick={() => navigate('/institution/faculty')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-faculty/5 hover:border-faculty/20 transition-all group"
+            >
+              <div className="w-10 h-10 rounded-full bg-faculty/10 flex items-center justify-center text-faculty mb-2 group-hover:scale-110 transition-transform">
+                <Users className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Manage Staff</span>
+            </button>
+            <button
+              onClick={() => navigate('/institution/student-details')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-success/5 hover:border-success/20 transition-all group"
+            >
+              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success mb-2 group-hover:scale-110 transition-transform">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Students</span>
+            </button>
+            <button
+              onClick={() => navigate('/institution/analytics')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-warning/5 hover:border-warning/20 transition-all group"
+            >
+              <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center text-warning mb-2 group-hover:scale-110 transition-transform">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Analytics</span>
+            </button>
           </div>
         </div>
       </div>
