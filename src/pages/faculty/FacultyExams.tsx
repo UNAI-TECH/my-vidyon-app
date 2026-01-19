@@ -150,6 +150,47 @@ export function FacultyExams() {
 
             if (insertError) throw insertError;
 
+            // 3. Notify Students
+            try {
+                const subjectName = availableSubjects.find(s => s.id === newMaterial.subjectId)?.name || 'Subject';
+                const selectedClass = availableClasses.find(c => c.id === newMaterial.classId);
+                const className = selectedClass?.name || 'Class';
+                const typeLabel = materialType === 'exam' ? 'Question Paper' : 'Study Material';
+
+                if (selectedClass) {
+                    let studentQuery = supabase
+                        .from('students')
+                        .select('profile_id')
+                        .eq('institution_id', user.institutionId)
+                        .eq('class_name', className); // Using name match convention
+
+                    if (newMaterial.section) {
+                        studentQuery = studentQuery.eq('section', newMaterial.section);
+                    }
+
+                    const { data: studentsToNotify } = await studentQuery;
+
+                    if (studentsToNotify && studentsToNotify.length > 0) {
+                        const notifications = studentsToNotify
+                            .filter(s => s.profile_id)
+                            .map(s => ({
+                                user_id: s.profile_id,
+                                title: `New ${typeLabel}: ${subjectName}`,
+                                message: `New material uploaded: "${newMaterial.title}" for ${className}${newMaterial.section ? '-' + newMaterial.section : ''}.`,
+                                type: 'resource',
+                                read: false
+                            }));
+
+                        if (notifications.length > 0) {
+                            await supabase.from('notifications').insert(notifications);
+                        }
+                    }
+                }
+            } catch (notifyError) {
+                console.error("Failed to send notifications:", notifyError);
+                // Don't block success toast for notification failure
+            }
+
             toast.success('Material uploaded successfully');
             setIsDialogOpen(false);
             setNewMaterial({ title: '', subjectId: '', classId: '', section: '', date: '', file: null });

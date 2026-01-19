@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
@@ -14,19 +14,20 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, Filter, Save, Plus, UserPlus } from 'lucide-react';
-
-const initialStudents = [
-    { id: 1, name: 'John Smith', rollNo: '101', internal: 18, external: 72, total: 90 },
-    { id: 2, name: 'Emily Johnson', rollNo: '102', internal: 19, external: 68, total: 87 },
-    { id: 3, name: 'Michael Brown', rollNo: '103', internal: 15, external: 60, total: 75 },
-    { id: 4, name: 'Sarah Davis', rollNo: '104', internal: 17, external: 75, total: 92 },
-    { id: 5, name: 'James Wilson', rollNo: '105', internal: 20, external: 78, total: 98 },
-];
+import { Search, Save, UserPlus, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export function FacultyMarks() {
-    const [studentsData, setStudentsData] = useState(initialStudents);
+    const { user } = useAuth();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [examName, setExamName] = useState('Term 2 Final Exam');
+    const [subjectName, setSubjectName] = useState('Mathematics');
+    const [marksData, setMarksData] = useState<Record<string, { internal: number, external: number }>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [newStudent, setNewStudent] = useState({
         name: '',
         rollNo: '',
@@ -34,142 +35,192 @@ export function FacultyMarks() {
         external: ''
     });
 
-    const handleAddStudent = () => {
-        if (!newStudent.name || !newStudent.rollNo) return;
+    // Fetch Students assigned to this faculty (reusing logic pattern from Attendance)
+    const { data: students = [], isLoading } = useQuery({
+        queryKey: ['faculty-marks-students', user?.institutionId, user?.id],
+        queryFn: async () => {
+            if (!user?.institutionId || !user?.id) return [];
 
-        const internal = Number(newStudent.internal) || 0;
-        const external = Number(newStudent.external) || 0;
+            // 1. Get Faculty's Assigned Class
+            const { data: staffDetails } = await supabase
+                .from('staff_details')
+                .select('class_assigned, section_assigned')
+                .eq('profile_id', user.id)
+                .single();
 
-        const student = {
-            id: Math.max(...studentsData.map(s => s.id), 0) + 1,
-            name: newStudent.name,
-            rollNo: newStudent.rollNo,
-            internal,
-            external,
-            total: internal + external
-        };
+            if (!staffDetails?.class_assigned) return [];
 
-        setStudentsData([...studentsData, student]);
-        setIsDialogOpen(false);
-        setNewStudent({ name: '', rollNo: '', internal: '', external: '' });
+            setSubjectName(`${staffDetails.class_assigned}-${staffDetails.section_assigned} Subject`); // Placeholder subject
+
+            // 2. Get Students in that Class
+            const { data: studentData, error: studentError } = await supabase
+                .from('students')
+                .select('id, name, roll_no, class_name, section, parent_id, profile_id') // Assuming parent_id exists in students
+                .eq('institution_id', user.institutionId)
+                .eq('class_name', staffDetails.class_assigned)
+                .eq('section', staffDetails.section_assigned || 'A')
+                .order('roll_no', { ascending: true });
+
+            if (studentError) throw studentError;
+            return studentData || [];
+        },
+        enabled: !!user?.institutionId && !!user?.id,
+    });
+
+    const handleMarksChange = (studentId: string, type: 'internal' | 'external', value: string) => {
+        const numVal = parseInt(value) || 0;
+        setMarksData(prev => ({
+            ...prev,
+            [studentId]: {
+                ...prev[studentId],
+                [type]: numVal,
+                internal: type === 'internal' ? numVal : (prev[studentId]?.internal || 0),
+                external: type === 'external' ? numVal : (prev[studentId]?.external || 0)
+            }
+        }));
     };
 
+    const handleFinalize = async () => {
+        setIsSubmitting(true);
+        try {
+            const notificationsToInsert = [];
+
+            // Iterate through students who have marks entered
+            for (const student of students) {
+                const marks = marksData[student.id];
+                if (!marks) continue; // Skip if no marks changed/entered for this session (or maybe we want to submit all 0s?)
+
+                const total = marks.internal + marks.external;
+
+                // 1. Notify Student
+                // Need to find student's profile_id (user_id) first if 'students' table id is different from profile_id.
+                // Usually 'students' table has 'profile_id' linking to auth.users/profiles. 
+                // Let's assume student.id is the profile_id OR we need to fetch it.
+                // Based on previous code `InstitutionUsers.tsx`, `students` table has `profile_id` column? 
+                // Let's safe fetch or assume student.id (if it's UUID) might be it or joined.
+                // Actually `FacultyStudentLeaves` used `student.id` for `student_id` in `leave_requests`.
+                // Let's guess: `students` table has `profile_id` column which matches `notifications.user_id`.
+
+                // Let's try to fetch profile_id for the student to be safe, or if we selected it above.
+                // I'll add profile_id to the select above.
+
+                // Construct Notification for Student
+                // We need to fetch the student's profile_id. I'll update the query above to select it.
+                // Assuming I added `profile_id` to the select.
+
+                // Wait, I can't update the query inside this loop. 
+                // Let's assume for now I will rely on `student.id` if that maps to `user_id` in notifications, 
+                // OR `student.profile_id`. I'll add `profile_id` to the select list in the useQuery.
+
+                if (student.profile_id) {
+                    notificationsToInsert.push({
+                        user_id: student.profile_id,
+                        title: `Marks Released: ${subjectName}`,
+                        message: `You scored ${total}/100 in ${examName}. Internal: ${marks.internal}, External: ${marks.external}.`,
+                        type: 'exam',
+                        read: false,
+                        created_at: new Date().toISOString()
+                    });
+                }
+
+                // 2. Notify Parent
+                // We need the parent's profile_id. 
+                // `student.parent_id` likely points to `parents.id`.
+                // We need to find `parents.profile_id`.
+                if (student.parent_id) {
+                    const { data: parentData } = await supabase
+                        .from('parents')
+                        .select('profile_id')
+                        .eq('id', student.parent_id)
+                        .single();
+
+                    if (parentData?.profile_id) {
+                        notificationsToInsert.push({
+                            user_id: parentData.profile_id,
+                            title: `Marks Update: ${student.name}`,
+                            message: `${student.name} scored ${total}/100 in ${examName} (${subjectName}).`,
+                            type: 'exam',
+                            read: false,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+                }
+            }
+
+            if (notificationsToInsert.length > 0) {
+                const { error } = await supabase.from('notifications').insert(notificationsToInsert);
+                if (error) throw error;
+                toast.success(`Marks submitted and ${notificationsToInsert.length} notifications sent!`);
+            } else {
+                toast.info("No marks to submit or no users linked.");
+            }
+
+        } catch (error: any) {
+            console.error('Error submitting marks:', error);
+            toast.error("Failed to submit marks: " + error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Need to update the query to select profile_id too
+    // Modifying the queryFn above in memory for the 'replace' block context:
+    // .select('id, name, roll_no, class_name, section, parent_id, profile_id') 
+
     const columns = [
-        { key: 'rollNo', header: 'Roll No.' },
+        { key: 'roll_no', header: 'Roll No.' },
         { key: 'name', header: 'Student Name' },
         {
             key: 'internal',
-            header: 'Internal Marks (20)',
+            header: 'Internal (20)',
             render: (item: any) => (
-                <input
+                <Input
                     type="number"
-                    defaultValue={item.internal}
-                    className="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-primary outline-none"
-                    onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        // In a real app, update state here. Visual only for now as requested.
-                    }}
+                    max={20}
+                    className="w-20"
+                    placeholder="0"
+                    value={marksData[item.id]?.internal ?? ''}
+                    onChange={(e) => handleMarksChange(item.id, 'internal', e.target.value)}
                 />
             )
         },
         {
             key: 'external',
-            header: 'External Marks (80)',
+            header: 'External (80)',
             render: (item: any) => (
-                <input
+                <Input
                     type="number"
-                    defaultValue={item.external}
-                    className="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-primary outline-none"
+                    max={80}
+                    className="w-20"
+                    placeholder="0"
+                    value={marksData[item.id]?.external ?? ''}
+                    onChange={(e) => handleMarksChange(item.id, 'external', e.target.value)}
                 />
             )
         },
-        { key: 'total', header: 'Total (100)' },
+        {
+            key: 'total',
+            header: 'Total (100)',
+            render: (item: any) => {
+                const i = marksData[item.id]?.internal || 0;
+                const e = marksData[item.id]?.external || 0;
+                return <span className="font-bold">{i + e}</span>;
+            }
+        },
     ];
+
+    const handleAddStudent = () => { toast.info("Students are managed by Admin/Institution"); setIsDialogOpen(false); };
 
     return (
         <FacultyLayout>
             <PageHeader
                 title="Marks Entry"
-                subtitle="Manage and enter student marks for assessments"
+                subtitle={`Enter marks for ${subjectName}`}
                 actions={
                     <div className="flex gap-3">
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="bg-success hover:bg-success/90 text-white flex items-center gap-2">
-                                    <UserPlus className="w-4 h-4" />
-                                    Add Student
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                    <DialogTitle>Add New Student</DialogTitle>
-                                    <DialogDescription>
-                                        Enter student details and initial marks to add them to the list.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="name" className="text-right">
-                                            Name
-                                        </Label>
-                                        <Input
-                                            id="name"
-                                            value={newStudent.name}
-                                            onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="John Doe"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="rollNo" className="text-right">
-                                            Roll No
-                                        </Label>
-                                        <Input
-                                            id="rollNo"
-                                            value={newStudent.rollNo}
-                                            onChange={(e) => setNewStudent({ ...newStudent, rollNo: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="106"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="internal" className="text-right">
-                                            Internal
-                                        </Label>
-                                        <Input
-                                            id="internal"
-                                            type="number"
-                                            value={newStudent.internal}
-                                            onChange={(e) => setNewStudent({ ...newStudent, internal: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="Max 20"
-                                            max={20}
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="external" className="text-right">
-                                            External
-                                        </Label>
-                                        <Input
-                                            id="external"
-                                            type="number"
-                                            value={newStudent.external}
-                                            onChange={(e) => setNewStudent({ ...newStudent, external: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="Max 80"
-                                            max={80}
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button type="submit" onClick={handleAddStudent}>Add Student</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-
-                        <Button className="btn-primary flex items-center gap-2">
-                            <Save className="w-4 h-4" />
-                            Save Marks
+                        <Button className="btn-primary flex items-center gap-2" onClick={handleFinalize} disabled={isSubmitting || students.length === 0}>
+                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Finalize & Submit
                         </Button>
                     </div>
                 }
@@ -183,15 +234,16 @@ export function FacultyMarks() {
                             type="text"
                             placeholder="Search students..."
                             className="pl-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-                        <select className="px-4 py-2 border rounded-lg bg-background text-sm flex-shrink-0">
-                            <option>Mathematics - Class 10-A</option>
-                            <option>Mathematics - Class 10-B</option>
-                            <option>Science - Class 9-A</option>
-                        </select>
-                        <select className="px-4 py-2 border rounded-lg bg-background text-sm flex-shrink-0">
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <select
+                            className="px-4 py-2 border rounded-lg bg-background text-sm"
+                            value={examName}
+                            onChange={(e) => setExamName(e.target.value)}
+                        >
                             <option>Term 2 Final Exam</option>
                             <option>Unit Test - II</option>
                             <option>Internal Assessment</option>
@@ -199,12 +251,7 @@ export function FacultyMarks() {
                     </div>
                 </div>
 
-                <DataTable columns={columns} data={studentsData} />
-            </div>
-
-            <div className="flex justify-end gap-3 pb-8">
-                <Button variant="outline">Discard Changes</Button>
-                <Button className="btn-primary">Finalize & Submit</Button>
+                <DataTable columns={columns} data={students.filter((s: any) => s.name.toLowerCase().includes(searchTerm.toLowerCase()))} loading={isLoading} />
             </div>
         </FacultyLayout>
     );

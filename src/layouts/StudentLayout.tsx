@@ -29,7 +29,7 @@ export function StudentLayout({ children }: { children: ReactNode }) {
     { label: t.nav.grades, href: '/student/grades', icon: GraduationCap },
     { label: t.nav.materials, href: '/student/materials', icon: FolderOpen },
     { label: t.nav.certificates, href: '/student/certificates', icon: Award },
-    { label: t.nav.notifications, href: '/student/notifications', icon: Bell },
+
     { label: t.nav.aiTutor, href: '/student/ai-tutor', icon: MessageSquare },
     { label: t.nav.settings, href: '/student/settings', icon: Settings },
   ];

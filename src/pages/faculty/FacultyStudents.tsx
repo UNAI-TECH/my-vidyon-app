@@ -2,61 +2,115 @@ import { useState } from 'react';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
-import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
-import { Search, Mail, Phone } from 'lucide-react';
+import { Search, Mail, Phone, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-
-const students = [
-    { id: 1, rollNo: '101', name: 'John Smith', class: 'Grade 10-A', parent: 'Robert Smith', contact: '+91 98765 43210', attendance: '95%', house: 'Blue', email: 'john.smith@student.edu' },
-    { id: 2, rollNo: '102', name: 'Emily Johnson', class: 'Grade 10-A', parent: 'Sarah Johnson', contact: '+91 98765 43211', attendance: '88%', house: 'Red', email: 'emily.johnson@student.edu' },
-    { id: 3, rollNo: '103', name: 'Michael Brown', class: 'Grade 10-A', parent: 'David Brown', contact: '+91 98765 43212', attendance: '92%', house: 'Green', email: 'michael.brown@student.edu' },
-    { id: 4, rollNo: '104', name: 'Sarah Davis', class: 'Grade 10-A', parent: 'Linda Davis', contact: '+91 98765 43213', attendance: '75%', house: 'Yellow', email: 'sarah.davis@student.edu' },
-    { id: 5, rollNo: '105', name: 'James Wilson', class: 'Grade 10-A', parent: 'Mary Wilson', contact: '+91 98765 43214', attendance: '98%', house: 'Blue', email: 'james.wilson@student.edu' },
-];
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
 
 export function FacultyStudents() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
+    const queryClient = useQueryClient();
+
+    // 1. Fetch Faculty's Assigned Class
+    const { data: assignment } = useQuery({
+        queryKey: ['faculty-assignment', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return null;
+            const { data } = await supabase
+                .from('staff_details')
+                .select('class_assigned, section_assigned')
+                .eq('profile_id', user.id)
+                .single();
+            return data;
+        },
+        enabled: !!user?.id
+    });
+
+    // 2. Fetch Students for that Class
+    const { data: students = [], isLoading } = useQuery({
+        queryKey: ['faculty-students-list', assignment?.class_assigned, assignment?.section_assigned],
+        queryFn: async () => {
+            if (!assignment?.class_assigned) return [];
+
+            let query = supabase
+                .from('students')
+                .select('*')
+                .eq('class_name', assignment.class_assigned)
+                .order('name');
+
+            // Optionally filter by section if assigned
+            if (assignment.section_assigned) {
+                query = query.eq('section', assignment.section_assigned);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!assignment?.class_assigned
+    });
+
+    // 3. Real-time Subscription
+    useEffect(() => {
+        if (!assignment?.class_assigned) return;
+
+        const channel = supabase
+            .channel('faculty-students-list-live')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'students',
+                    filter: `class_name=eq.${assignment.class_assigned}`
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['faculty-students-list'] });
+                    toast('Student list updated');
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [assignment?.class_assigned, queryClient]);
+
 
     // Filter students based on search query
-    const filteredStudents = students.filter(student => {
+    const filteredStudents = students.filter((student: any) => {
         const query = searchQuery.toLowerCase();
         return (
-            student.name.toLowerCase().includes(query) ||
-            student.rollNo.toLowerCase().includes(query) ||
-            student.house.toLowerCase().includes(query)
+            student.name?.toLowerCase().includes(query) ||
+            student.roll_no?.toLowerCase().includes(query) ||
+            student.email?.toLowerCase().includes(query)
         );
     });
 
     const columns = [
-        { key: 'rollNo', header: 'Roll No.' },
+        { key: 'roll_no', header: 'Roll No.' },
         { key: 'name', header: 'Full Name' },
-        { key: 'class', header: 'Class' },
-        { key: 'attendance', header: 'Attendance' },
         {
-            key: 'house',
-            header: 'House',
-            render: (item: typeof students[0]) => {
-                const colors: Record<string, string> = {
-                    Blue: 'bg-blue-500',
-                    Red: 'bg-red-500',
-                    Green: 'bg-green-500',
-                    Yellow: 'bg-yellow-500',
-                };
-                return (
-                    <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${colors[item.house]}`} />
-                        <span>{item.house}</span>
-                    </div>
-                );
-            }
+            key: 'class_info',
+            header: 'Class',
+            render: (item: any) => `${item.class_name} - ${item.section}`
+        },
+        { key: 'gender', header: 'Gender' },
+        {
+            key: 'contact',
+            header: 'Contact',
+            render: (item: any) => item.phone || 'N/A'
         },
         {
             key: 'actions',
             header: 'Communication',
-            render: (item: typeof students[0]) => (
+            render: (item: any) => (
                 <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
@@ -73,7 +127,7 @@ export function FacultyStudents() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => navigate(`/faculty/students/${item.rollNo}`)}
+                        onClick={() => navigate(`/faculty/students/${item.id}`)}
                     >
                         View Profile
                     </Button>
@@ -86,7 +140,7 @@ export function FacultyStudents() {
         <FacultyLayout>
             <PageHeader
                 title="Student Directory"
-                subtitle="View and manage students enrolled in your subjects"
+                subtitle={`Viewing students for Class ${assignment?.class_assigned || '...'} ${assignment?.section_assigned ? '- ' + assignment.section_assigned : ''}`}
             />
 
             <div className="dashboard-card mb-6">
@@ -95,27 +149,19 @@ export function FacultyStudents() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
                             type="text"
-                            placeholder="Search students by name, roll no or house..."
+                            placeholder="Search students..."
                             className="input-field pl-10"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <select className="px-4 py-2 border rounded-lg bg-background">
-                        <option>All Classes</option>
-                        <option>Grade 10-A</option>
-                        <option>Grade 9-B</option>
-                    </select>
-                    <select className="px-4 py-2 border rounded-lg bg-background">
-                        <option>All Houses</option>
-                        <option>Blue House</option>
-                        <option>Red House</option>
-                        <option>Green House</option>
-                        <option>Yellow House</option>
-                    </select>
                 </div>
 
-                <DataTable columns={columns} data={filteredStudents} />
+                {isLoading ? (
+                    <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+                ) : (
+                    <DataTable columns={columns} data={filteredStudents} emptyMessage="No students found in your assigned class." />
+                )}
             </div>
         </FacultyLayout>
     );
