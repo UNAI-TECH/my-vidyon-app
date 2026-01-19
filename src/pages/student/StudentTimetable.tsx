@@ -6,9 +6,10 @@ import { Loader2, Calendar, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { Badge } from '@/components/common/Badge';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StudentExamScheduleView } from '@/components/exam-schedule/StudentExamScheduleView';
+import { useWebSocketContext } from '@/context/WebSocketContext';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -33,53 +34,58 @@ interface TimetableSlot {
 
 export function StudentTimetable() {
     const { user } = useAuth();
+    const { subscribeToTable } = useWebSocketContext();
+    const queryClient = useQueryClient();
     const [studentInfo, setStudentInfo] = useState<{ class_name: string; section: string; class_id: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // Fetch student's class and section info
     useEffect(() => {
         const fetchStudentInfo = async () => {
-            if (!user?.email) {
-                console.log('[STUDENT] No user email available');
+            if (!user?.email || !user?.institutionId) {
+                console.log('[STUDENT] Missing user details:', { email: user?.email, institutionId: user?.institutionId });
                 return;
             }
 
-            console.log('[STUDENT] Fetching student info for:', user.email);
+            console.log('[STUDENT] Fetching student info case-insensitively for:', user.email, 'with institutionId:', user.institutionId);
             setError(null);
 
             try {
                 // Try to get student's class and section from students table
-                const { data: studentData, error: studentError } = await supabase
+                // Using ilike for case-insensitivity and adding institution_id filter
+                const { data: studentData, error: studentError, status } = await supabase
                     .from('students')
-                    .select('class_name, section')
-                    .eq('email', user.email)
+                    .select('class_name, section, institution_id')
+                    .ilike('email', user.email)
+                    .eq('institution_id', user.institutionId)
                     .maybeSingle();
 
+                console.log('[STUDENT] Query status:', status);
                 if (studentError) {
                     console.error('[STUDENT] Error fetching student data:', studentError);
-                    console.error('[STUDENT] Error details:', {
-                        message: studentError.message,
-                        details: studentError.details,
-                        hint: studentError.hint,
-                        code: studentError.code
-                    });
-
-                    // If table doesn't exist or RLS blocks, show helpful error
-                    if (studentError.code === 'PGRST116' || studentError.code === '42P01') {
-                        setError('Student data not found. Please contact your institution admin.');
-                    } else {
-                        setError(`Database error: ${studentError.message}`);
-                    }
+                    setError(`Database error: ${studentError.message} (Code: ${studentError.code})`);
                     return;
                 }
 
                 if (!studentData) {
-                    console.log('[STUDENT] No student data found in students table');
-                    setError('Your student profile is not set up yet. Please contact your institution admin.');
+                    console.log(`[STUDENT] Query returned NO data for email: ${user.email} and inst: ${user.institutionId}`);
+                    // Fallback check: try without institution_id just to see if it's the culprit
+                    const { data: fallbackData } = await supabase
+                        .from('students')
+                        .select('institution_id')
+                        .ilike('email', user.email)
+                        .maybeSingle();
+
+                    if (fallbackData) {
+                        console.log('[STUDENT] FALLBACK: Found student but institution_id mismatch. Auth ID:', user.institutionId, 'DB ID:', fallbackData.institution_id);
+                        setError(`Institution ID mismatch. Please contact admin. (Auth: ${user.institutionId}, DB: ${fallbackData.institution_id})`);
+                    } else {
+                        setError('Your student profile is not set up yet. Please contact your institution admin.');
+                    }
                     return;
                 }
 
-                console.log('[STUDENT] Student data:', studentData);
+                console.log('[STUDENT] Student profile found:', studentData);
 
                 // Validate data
                 if (!studentData.class_name || !studentData.section) {
@@ -88,27 +94,28 @@ export function StudentTimetable() {
                     return;
                 }
 
-                // Get class ID
+
+                // Get class ID - filtering by name and institution_id through groups table
                 const { data: classData, error: classError } = await supabase
                     .from('classes')
-                    .select('id')
+                    .select('id, groups!inner(institution_id)')
                     .eq('name', studentData.class_name)
-                    .limit(1)
+                    .eq('groups.institution_id', user.institutionId)
                     .maybeSingle();
 
                 if (classError) {
                     console.error('[STUDENT] Error fetching class data:', classError);
-                    setError(`Could not find class "${studentData.class_name}". Please contact your institution admin.`);
+                    setError(`Error looking up class: ${classError.message}`);
                     return;
                 }
 
                 if (!classData) {
-                    console.log('[STUDENT] No class found for:', studentData.class_name);
+                    console.log('[STUDENT] No class found for name:', studentData.class_name, 'in institution:', user.institutionId);
                     setError(`Class "${studentData.class_name}" not found in the system.`);
                     return;
                 }
 
-                console.log('[STUDENT] Class ID:', classData.id);
+                console.log('[STUDENT] Resolved Class ID:', classData.id);
 
                 setStudentInfo({
                     class_name: studentData.class_name,
@@ -116,13 +123,13 @@ export function StudentTimetable() {
                     class_id: classData.id
                 });
             } catch (err) {
-                console.error('[STUDENT] Unexpected error:', err);
+                console.error('[STUDENT] Unexpected error during profile lookup:', err);
                 setError('An unexpected error occurred. Please try again later.');
             }
         };
 
         fetchStudentInfo();
-    }, [user?.email]);
+    }, [user?.email, user?.institutionId]);
 
     // Fetch timetable slots for student's class and section
     const { data: timetableSlots = [], isLoading, refetch } = useQuery({
@@ -133,8 +140,29 @@ export function StudentTimetable() {
                 return [];
             }
 
-            console.log('[STUDENT] Fetching timetable for class:', studentInfo.class_name, 'Section:', studentInfo.section);
+            console.log('[STUDENT] Fetching timetable config for class:', studentInfo.class_name, 'Section:', studentInfo.section);
 
+            // Step 1: Get the configuration ID
+            const { data: configData, error: configError } = await supabase
+                .from('timetable_configs')
+                .select('id')
+                .eq('class_id', studentInfo.class_id)
+                .eq('section', studentInfo.section)
+                .maybeSingle();
+
+            if (configError) {
+                console.error('[STUDENT] Error fetching timetable config:', configError);
+                throw configError;
+            }
+
+            if (!configData) {
+                console.log('[STUDENT] No timetable configuration found');
+                return [];
+            }
+
+            console.log('[STUDENT] Found config ID:', configData.id);
+
+            // Step 2: Fetch slots using the config ID
             const { data, error } = await supabase
                 .from('timetable_slots')
                 .select(`
@@ -142,13 +170,12 @@ export function StudentTimetable() {
                     subjects:subject_id (name),
                     profiles:faculty_id (full_name)
                 `)
-                .eq('class_id', studentInfo.class_id)
-                .eq('section', studentInfo.section)
+                .eq('config_id', configData.id)
                 .order('day_of_week')
                 .order('period_index');
 
             if (error) {
-                console.error('[STUDENT] Error fetching timetable:', error);
+                console.error('[STUDENT] Error fetching timetable slots:', error);
                 throw error;
             }
 
@@ -161,35 +188,44 @@ export function StudentTimetable() {
         refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
     });
 
-    // Subscribe to real-time changes
+    // Real-time subscriptions using WebSocketContext
     useEffect(() => {
-        if (!studentInfo?.class_id || !studentInfo?.section) return;
+        if (!studentInfo?.class_id) return;
 
-        console.log('[STUDENT] Setting up real-time subscription for class:', studentInfo.class_name, 'Section:', studentInfo.section);
+        console.log('[STUDENT] Setting up WebSocket subscriptions for class:', studentInfo.class_id);
 
-        const channel = supabase
-            .channel('student-timetable-changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'timetable_slots',
-                    filter: `class_id=eq.${studentInfo.class_id}`
-                },
-                (payload) => {
-                    console.log('[STUDENT] Real-time update received:', payload);
-                    // Refetch timetable when changes occur
-                    refetch();
-                }
-            )
-            .subscribe();
+        // Subscribe to timetable_slots changes
+        const unsubSlots = subscribeToTable(
+            'timetable_slots',
+            (payload) => {
+                console.log('[STUDENT] WS: Timetable slots update received:', payload);
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ['student-timetable'] });
+            },
+            {
+                filter: `class_id=eq.${studentInfo.class_id}`
+            }
+        );
+
+        // Subscribe to timetable_configs changes
+        const unsubConfigs = subscribeToTable(
+            'timetable_configs',
+            (payload) => {
+                console.log('[STUDENT] WS: Timetable config update received:', payload);
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ['student-timetable'] });
+            },
+            {
+                filter: `class_id=eq.${studentInfo.class_id}`
+            }
+        );
 
         return () => {
-            console.log('[STUDENT] Cleaning up real-time subscription');
-            supabase.removeChannel(channel);
+            console.log('[STUDENT] Cleaning up WebSocket subscriptions');
+            unsubSlots();
+            unsubConfigs();
         };
-    }, [studentInfo?.class_id, studentInfo?.section, refetch]);
+    }, [studentInfo?.class_id, subscribeToTable, queryClient, refetch]);
 
     // Convert array to object for easier lookup
     const timetableData: { [key: string]: TimetableSlot } = {};
