@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,18 +42,27 @@ export function RealtimeNotificationBell() {
     useEffect(() => {
         if (!user || !['institution', 'admin'].includes(user.role)) return;
 
-        const unsubscribe = subscribeToTable('leave_requests', (payload) => {
-            console.log('📬 Leave request update:', payload);
+        // Subscribe to student leave requests
+        const unsubscribeStudentLeaves = subscribeToTable('leave_requests', (payload) => {
+            console.log('📬 Student Leave request update:', payload);
+            if (payload.eventType === 'INSERT') {
+                // Logic for student leaves if needed, or generic
+            }
+        });
+
+        // Subscribe to STAFF leave requests
+        const unsubscribeStaffLeaves = subscribeToTable('staff_leaves', (payload) => {
+            console.log('📬 Staff Leave request update:', payload);
 
             if (payload.eventType === 'INSERT') {
                 const notification: Notification = {
                     id: payload.new.id || Date.now().toString(),
-                    title: 'New Leave Request',
-                    message: `${payload.new.staff_name || 'A staff member'} has submitted a leave request`,
+                    title: 'New Staff Leave Request',
+                    message: `A staff member has submitted a ${payload.new.leave_type || 'leave'} request`,
                     type: 'info',
                     timestamp: Date.now(),
                     read: false,
-                    table: 'leave_requests',
+                    table: 'staff_leaves',
                     eventType: 'INSERT',
                 };
 
@@ -65,7 +75,10 @@ export function RealtimeNotificationBell() {
             }
         });
 
-        return unsubscribe;
+        return () => {
+            unsubscribeStudentLeaves();
+            unsubscribeStaffLeaves();
+        };
     }, [subscribeToTable, user]);
 
     // Subscribe to assignments (for students/faculty)
@@ -223,6 +236,29 @@ export function RealtimeNotificationBell() {
         return unsubscribe;
     }, [subscribeToTable, user]);
 
+    const navigate = useNavigate();
+
+    const handleNotificationClick = (notification: Notification) => {
+        markAsRead(notification.id);
+
+        // Navigation logic based on notification type/table
+        if (notification.table === 'staff_leaves') {
+            navigate('/institution/leave-approval');
+        } else if (notification.table === 'leave_requests') {
+            if (user?.role === 'faculty') {
+                navigate('/faculty/student-leaves');
+            } else {
+                navigate('/institution/leave-approval'); // Fallback or distinct route if exists
+            }
+        } else if (notification.table === 'assignments') {
+            navigate(user?.role === 'student' ? '/student/assignments' : '/faculty/assignments');
+        } else if (notification.table === 'grades') {
+            navigate('/student/grades');
+        } else if (notification.table === 'announcements') {
+            navigate(user?.role === 'student' ? '/student/notifications' : '/faculty/announcements'); // Adjust as needed
+        }
+    };
+
     const markAsRead = (id: string) => {
         setNotifications(prev =>
             prev.map(n => (n.id === id ? { ...n, read: true } : n))
@@ -287,7 +323,7 @@ export function RealtimeNotificationBell() {
                                     key={notification.id}
                                     className={`flex flex-col items-start p-3 cursor-pointer ${!notification.read ? 'bg-muted/50' : ''
                                         }`}
-                                    onClick={() => markAsRead(notification.id)}
+                                    onClick={() => handleNotificationClick(notification)}
                                 >
                                     <div className="flex items-start justify-between w-full">
                                         <div className="flex-1">
