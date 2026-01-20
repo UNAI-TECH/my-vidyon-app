@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 import { Loader2, Save, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 export function CreateAssignment() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
@@ -26,6 +30,31 @@ export function CreateAssignment() {
         dueDate: '',
         description: '',
         points: '100'
+    });
+
+    // Fetch classes from database
+    const { data: classes = [], isLoading: classesLoading } = useQuery({
+        queryKey: ['classes', user?.institutionId],
+        queryFn: async () => {
+            if (!user?.institutionId) return [];
+
+            const { data, error } = await supabase
+                .from('classes')
+                .select('*')
+                .eq('institution_id', user.institutionId)
+                .order('name', { ascending: true })
+                .order('section', { ascending: true });
+
+            if (error) throw error;
+
+            return (data || []).map((cls: any) => ({
+                id: cls.id,
+                name: cls.name,
+                section: cls.section,
+                displayName: `${cls.name} - ${cls.section}`,
+            }));
+        },
+        enabled: !!user?.institutionId,
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -103,14 +132,24 @@ export function CreateAssignment() {
                                     onValueChange={(value) => setFormData({ ...formData, class: value })}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select Class" />
+                                        <SelectValue placeholder={classesLoading ? "Loading classes..." : "Select Class"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Grade 9-A">Grade 9-A</SelectItem>
-                                        <SelectItem value="Grade 9-B">Grade 9-B</SelectItem>
-                                        <SelectItem value="Grade 10-A">Grade 10-A</SelectItem>
-                                        <SelectItem value="Grade 10-B">Grade 10-B</SelectItem>
-                                        <SelectItem value="Grade 11-A">Grade 11-A</SelectItem>
+                                        {classesLoading ? (
+                                            <SelectItem value="loading" disabled>
+                                                Loading classes...
+                                            </SelectItem>
+                                        ) : classes.length > 0 ? (
+                                            classes.map((cls: any) => (
+                                                <SelectItem key={cls.id} value={cls.displayName}>
+                                                    {cls.displayName}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="no-classes" disabled>
+                                                No classes available
+                                            </SelectItem>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>

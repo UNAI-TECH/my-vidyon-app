@@ -75,30 +75,11 @@ export function StudentDashboard() {
     staleTime: 1000 * 60,
   });
 
-  // Use comprehensive student dashboard hook
-  const { stats, assignments, attendanceRecords, grades, feeStatus } = useStudentDashboard(
-    studentProfile?.id,
-    user?.institutionId
+  // Use comprehensive  // Use the hook for all data
+  const { stats, assignments, attendanceRecords, grades, subjects } = useStudentDashboard(
+    user?.id,
+    studentProfile?.institution_id
   );
-
-  // Fetch Subjects
-  const { data: subjects = [] } = useQuery({
-    queryKey: ['student-subjects', studentProfile?.class_name],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('subjects')
-        .select('*')
-        .eq('class_name', studentProfile?.class_name);
-
-      return (data || []).map((sub: any) => ({
-        title: sub.name,
-        code: sub.code || sub.class_name,
-        instructor: sub.instructor_name || 'Not Assigned',
-      }));
-    },
-    enabled: !!studentProfile?.class_name,
-    staleTime: 1000 * 60,
-  });
 
   // Get today's attendance status
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -179,11 +160,20 @@ export function StudentDashboard() {
             <h3 className="font-semibold text-sm sm:text-base">My Subjects</h3>
             <a href="/student/courses" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4">
-            {subjects.length > 0 ? subjects.map((course: any) => (
-              <CourseCard key={course.code} {...course} />
-            )) : (
-              <p className="text-muted-foreground text-sm col-span-full">No subjects assigned yet.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {subjects.length > 0 ? (
+              subjects.map((subject: any) => (
+                <CourseCard
+                  key={subject.id}
+                  title={subject.name}
+                  code={subject.code}
+                  instructor={subject.instructor}
+                />
+              ))
+            ) : (
+              <div className="col-span-2 text-center py-6 text-muted-foreground text-sm">
+                No subjects assigned yet
+              </div>
             )}
           </div>
         </div>

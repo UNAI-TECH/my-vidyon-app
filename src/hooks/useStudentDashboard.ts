@@ -283,12 +283,75 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
         };
     }, [studentId, institutionId, queryClient]);
 
+    // 8. Fetch Subjects for Student's Class
+    const { data: subjects = [] } = useQuery({
+        queryKey: ['student-subjects', studentId],
+        queryFn: async () => {
+            if (!studentId) return [];
+
+            // Get student's class first
+            const { data: studentData } = await supabase
+                .from('students')
+                .select('class_name, section')
+                .eq('id', studentId)
+                .single();
+
+            if (!studentData) return [];
+
+            // Fetch subjects for that class
+            const { data, error } = await supabase
+                .from('subjects')
+                .select('*')
+                .eq('institution_id', institutionId)
+                .eq('class_name', studentData.class_name);
+
+            if (error) throw error;
+
+            return (data || []).map((sub: any) => ({
+                id: sub.id,
+                name: sub.name,
+                code: sub.code || 'N/A',
+                instructor: sub.instructor_name || 'Not Assigned',
+                credits: sub.credits || 0,
+            }));
+        },
+        enabled: !!studentId && !!institutionId,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    // 9. Real-time subscription for subjects
+    useEffect(() => {
+        if (!institutionId) return;
+
+        const subjectsChannel = supabase
+            .channel('student-subjects-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'subjects',
+                    filter: `institution_id=eq.${institutionId}`,
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
+                    toast.info('Subjects updated');
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subjectsChannel);
+        };
+    }, [institutionId, queryClient]);
+
     return {
         stats,
         assignments,
         attendanceRecords,
         grades,
         feeStatus,
+        subjects,
         isLoading: false,
     };
 }
