@@ -64,7 +64,7 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
                 `)
                 .eq('faculty_profile_id', facultyId)
                 .eq('assignment_type', 'class_teacher')
-                .single();
+                .maybeSingle();
 
             if (!(assignment?.classes as any)?.name) return 0;
 
@@ -184,7 +184,7 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
                 `)
                 .eq('faculty_profile_id', facultyId)
                 .eq('assignment_type', 'class_teacher')
-                .single();
+                .maybeSingle();
 
             if (!(assignment?.classes as any)?.name) return 0;
 
