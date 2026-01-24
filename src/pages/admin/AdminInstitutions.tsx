@@ -303,7 +303,6 @@ export function AdminInstitutions() {
                     logoUrl={inst.logo_url}
                     onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
                     onEdit={() => navigate(`/admin/add-institution?mode=edit&id=${inst.institution_id}`)}
-                    onAnalytics={() => navigate(`/admin/analytics/${inst.institution_id}`)}
                     onDelete={() => handleDeleteInstitution(inst.id, inst.name)}
                   />
                 ))}
@@ -338,7 +337,6 @@ export function AdminInstitutions() {
                     logoUrl={inst.logo_url}
                     onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
                     onEdit={() => navigate(`/admin/add-institution?mode=edit&id=${inst.institution_id}`)}
-                    onAnalytics={() => navigate(`/admin/analytics/${inst.institution_id}`)}
                     onDelete={() => handleDeleteInstitution(inst.id, inst.name)}
                   />
                 ))}
