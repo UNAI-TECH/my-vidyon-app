@@ -21,6 +21,7 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -519,6 +520,29 @@ export function InstitutionUsers() {
                             </div>
                         )}
                     </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowBulkUpload(false)}
+                            disabled={isBulkUploading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleBulkUpload}
+                            disabled={!bulkFile || isBulkUploading}
+                        >
+                            {isBulkUploading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Importing...
+                                </>
+                            ) : (
+                                'Submit'
+                            )}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </InstitutionLayout>

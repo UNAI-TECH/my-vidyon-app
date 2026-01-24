@@ -32,11 +32,6 @@ export function FacultyDashboard() {
   // Show loader for minimum time
   const showLoader = useMinimumLoadingTime(isLoading, 500);
 
-  const handleCreateAssignment = () => {
-    toast.success('Assignment creation form opened');
-    navigate('/faculty/assignments');
-  };
-
   if (showLoader) {
     return (
       <FacultyLayout>
@@ -50,12 +45,6 @@ export function FacultyDashboard() {
       <PageHeader
         title={`Good morning, ${user?.name?.split(' ')[0] || 'Faculty'}!`}
         subtitle="Manage your courses and track student progress"
-        actions={
-          <Button className="btn-primary flex items-center gap-2" onClick={handleCreateAssignment}>
-            <Plus className="w-4 h-4" />
-            Create Assignment
-          </Button>
-        }
       />
 
       {/* Stats Grid - Real-time Data */}

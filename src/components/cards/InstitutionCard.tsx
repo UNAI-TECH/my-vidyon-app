@@ -16,7 +16,6 @@ interface InstitutionCardProps {
   sections?: number;
   onClick?: () => void;
   onEdit?: () => void;
-  onAnalytics?: () => void;
   onDelete?: () => void;
 }
 
@@ -34,7 +33,6 @@ export function InstitutionCard({
   logoUrl,
   onClick,
   onEdit,
-  onAnalytics,
   onDelete,
 }: InstitutionCardProps) {
   const statusVariant = {
@@ -50,8 +48,6 @@ export function InstitutionCard({
       onClick();
     } else if (action === 'edit' && onEdit) {
       onEdit();
-    } else if (action === 'analytics' && onAnalytics) {
-      onAnalytics();
     }
   };
 
@@ -139,15 +135,7 @@ export function InstitutionCard({
           <Edit className="w-3 h-3 mr-1" />
           Edit
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-[10px] sm:text-xs min-h-[36px] sm:min-h-[32px]"
-          onClick={(e) => handleQuickAction(e, 'analytics')}
-        >
-          <BarChart3 className="w-3 h-3 mr-1" />
-          Analytics
-        </Button>
+
         {onDelete && (
           <Button
             variant="outline"
