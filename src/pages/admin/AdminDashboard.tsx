@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Loader from '@/components/common/Loader';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import {
   Building2,
   Users,
@@ -113,8 +112,7 @@ export function AdminDashboard() {
 
   const isLoading = isStatsLoading || isActivitiesLoading || isPendingLoading;
 
-  // Ensure loader displays for minimum 1.5 seconds for smooth UX
-  const showLoader = useMinimumLoadingTime(isLoading, 500);
+  // No longer using intentional delay for loader
 
   useEffect(() => {
     // Subscribe to platform activities for real-time feed
@@ -218,7 +216,7 @@ export function AdminDashboard() {
         }
       />
 
-      {showLoader ? (
+      {isLoading ? (
         <Loader fullScreen={false} />
       ) : (
         <>
