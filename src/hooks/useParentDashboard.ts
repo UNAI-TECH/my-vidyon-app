@@ -10,6 +10,7 @@ interface Child {
     class: string;
     section: string;
     rollNumber: string;
+    classId: string;
 }
 
 interface ParentDashboardStats {
@@ -68,6 +69,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 class: child.class_name,
                 section: child.section,
                 rollNumber: child.roll_number,
+                classId: child.class_id,
             })) as Child[];
         },
         enabled: !!parentId,
@@ -75,6 +77,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
     });
 
     const childIds = children.map(c => c.id);
+    const uniqueClassIds = Array.from(new Set(children.map(c => c.classId).filter(id => !!id)));
 
     // 2. Fetch Attendance for all children
     const { data: childrenAttendance = [] } = useQuery({
@@ -170,7 +173,31 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         staleTime: 5 * 60 * 1000,
     });
 
-    // 5. Fetch Upcoming Events
+    // 5. Fetch Special Classes for linked children
+    const { data: specialClasses = [] } = useQuery({
+        queryKey: ['parent-special-classes', uniqueClassIds],
+        queryFn: async () => {
+            if (uniqueClassIds.length === 0) return [];
+
+            const { data, error } = await supabase
+                .from('special_timetable_slots')
+                .select(`
+                    *,
+                    subjects:subject_id (name),
+                    profiles:faculty_id (full_name),
+                    classes (name)
+                `)
+                .in('class_id', uniqueClassIds)
+                .gte('event_date', new Date().toISOString().split('T')[0])
+                .order('event_date');
+
+            if (error) throw error;
+            return data || [];
+        },
+        enabled: uniqueClassIds.length > 0,
+    });
+
+    // 6. Fetch Upcoming Events
     const { data: upcomingEventsCount = 0 } = useQuery({
         queryKey: ['parent-events', institutionId],
         queryFn: async () => {
@@ -207,6 +234,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         children,
         childrenAttendance,
         leaveRequests,
+        specialClasses,
         feeData,
         isLoading: false,
     };

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment, useEffect } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,12 @@ import {
     ArrowLeft,
     Save,
     X,
+    Settings2,
+    Calendar as CalendarIcon,
+    Clock,
+    Plus,
+    Filter,
+    Trash2,
 } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import {
@@ -61,6 +67,28 @@ export function InstitutionTimetable() {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingSlot, setEditingSlot] = useState<EditingSlot | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
+    const [isSpecialMode, setIsSpecialMode] = useState(false);
+
+    // Config State
+    const [configData, setConfigData] = useState({
+        periods_per_day: 8,
+        period_duration_minutes: 45,
+        buffer_time_minutes: 5,
+        start_time: '09:00',
+        lunch_start_time: '12:30',
+        lunch_duration_minutes: 45,
+        days_per_week: 6,
+        short_break_start_time: '11:00',
+        short_break_duration_minutes: 15,
+        short_break_name: 'Short Break',
+        extra_breaks: [] as { name: string; start_time: string; duration: number }[],
+    });
+
+    // Special Class State
+    const [specialClassDate, setSpecialClassDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedClassId, setSelectedClassId] = useState<string>('all');
+    const [selectedSection, setSelectedSection] = useState<string>('all');
 
     // Fetch all faculty members
     const { data: faculties = [], isLoading: isLoadingFaculty } = useQuery({
@@ -125,6 +153,42 @@ export function InstitutionTimetable() {
         },
     });
 
+    // Fetch current config
+    const { data: currentConfig } = useQuery({
+        queryKey: ['timetable-config', user?.institutionId],
+        queryFn: async () => {
+            if (!user?.institutionId) return null;
+            const { data, error } = await supabase
+                .from('timetable_configs')
+                .select('*')
+                .eq('institution_id', user.institutionId)
+                .maybeSingle();
+
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user?.institutionId,
+    });
+
+    // Sync config state with fetched data
+    useEffect(() => {
+        if (currentConfig) {
+            setConfigData({
+                periods_per_day: currentConfig.periods_per_day,
+                period_duration_minutes: currentConfig.period_duration_minutes,
+                buffer_time_minutes: currentConfig.buffer_time_minutes || 5,
+                start_time: currentConfig.start_time.substring(0, 5),
+                lunch_start_time: currentConfig.lunch_start_time?.substring(0, 5) || '12:30',
+                lunch_duration_minutes: currentConfig.lunch_duration_minutes || 45,
+                days_per_week: currentConfig.days_per_week || 6,
+                short_break_start_time: currentConfig.short_break_start_time?.substring(0, 5) || '11:00',
+                short_break_duration_minutes: currentConfig.short_break_duration_minutes || 15,
+                short_break_name: currentConfig.short_break_name || 'Short Break',
+                extra_breaks: currentConfig.extra_breaks || [],
+            });
+        }
+    }, [currentConfig]);
+
     // Fetch timetable for selected faculty
     const {
         data: facultyTimetable = [],
@@ -163,6 +227,32 @@ export function InstitutionTimetable() {
         },
         enabled: !!selectedFaculty?.id,
         retry: 1,
+    });
+
+    // Fetch special slots for selected date/class
+    const { data: specialSlots = [], isLoading: isLoadingSpecial } = useQuery({
+        queryKey: ['special-slots', specialClassDate, selectedClassId, selectedSection],
+        queryFn: async () => {
+            if (!user?.institutionId || !isSpecialMode) return [];
+
+            let query = supabase
+                .from('special_timetable_slots')
+                .select(`
+                    *,
+                    subjects (name),
+                    profiles:faculty_id (full_name),
+                    classes (name)
+                `)
+                .eq('event_date', specialClassDate);
+
+            if (selectedClassId !== 'all') query = query.eq('class_id', selectedClassId);
+            if (selectedSection !== 'all') query = query.eq('section', selectedSection);
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data || [];
+        },
+        enabled: !!user?.institutionId && isSpecialMode,
     });
 
     // Derived View Data
@@ -227,6 +317,9 @@ export function InstitutionTimetable() {
                         periods_per_day: 8,
                         period_duration_minutes: 45,
                         start_time: '09:00',
+                        short_break_start_time: '11:00',
+                        short_break_duration_minutes: 15,
+                        short_break_name: 'Short Break',
                     })
                     .select('id')
                     .single();
@@ -314,9 +407,207 @@ export function InstitutionTimetable() {
         },
     });
 
+    // Save config mutation
+    const saveConfigMutation = useMutation({
+        mutationFn: async () => {
+            if (!user?.institutionId) throw new Error('No institution ID');
+
+            const { error } = await supabase
+                .from('timetable_configs')
+                .upsert({
+                    institution_id: user.institutionId,
+                    periods_per_day: configData.periods_per_day,
+                    period_duration_minutes: configData.period_duration_minutes,
+                    buffer_time_minutes: configData.buffer_time_minutes,
+                    start_time: configData.start_time,
+                    lunch_start_time: configData.lunch_start_time,
+                    lunch_duration_minutes: configData.lunch_duration_minutes,
+                    days_per_week: configData.days_per_week,
+                    short_break_start_time: configData.short_break_start_time,
+                    short_break_duration_minutes: configData.short_break_duration_minutes,
+                    short_break_name: configData.short_break_name,
+                    extra_breaks: configData.extra_breaks,
+                }, { onConflict: 'institution_id' });
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Configuration saved');
+            queryClient.invalidateQueries({ queryKey: ['timetable-config'] });
+            setIsConfigDialogOpen(false);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to save config');
+        }
+    });
+
+    // Save special slot mutation
+    const saveSpecialSlotMutation = useMutation({
+        mutationFn: async () => {
+            if (!editingSlot || !user?.institutionId || !isSpecialMode) throw new Error('Missing data');
+
+            const slotData = {
+                institution_id: user.institutionId,
+                class_id: editingSlot.data.class_id,
+                section: editingSlot.data.section,
+                event_date: specialClassDate,
+                subject_id: editingSlot.data.subject_id,
+                faculty_id: selectedFaculty?.id, // Default to selected faculty if any
+                start_time: editingSlot.data.start_time,
+                end_time: editingSlot.data.end_time,
+                room_number: editingSlot.data.room_number,
+            };
+
+            const { data: inserted, error } = await supabase
+                .from('special_timetable_slots')
+                .insert(slotData)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Notify students of this class/section
+            const { data: students } = await supabase
+                .from('students')
+                .select('id, parent_id')
+                .eq('class_name', classesData.find(c => c.id === slotData.class_id)?.name)
+                .eq('section', slotData.section)
+                .eq('institution_id', user.institutionId);
+
+            if (students && students.length > 0) {
+                const notifications = students.flatMap(s => {
+                    const msgs = [{
+                        user_id: s.id,
+                        title: 'Special Class Scheduled',
+                        message: `A special class for ${editingSlot.data.subject_name || 'Subject'} has been scheduled on ${specialClassDate} at ${slotData.start_time}.`,
+                        type: 'timetable',
+                        date: new Date().toISOString(),
+                    }];
+                    if (s.parent_id) {
+                        msgs.push({
+                            user_id: s.parent_id,
+                            title: 'Special Class for your child',
+                            message: `A special class for your child has been scheduled on ${specialClassDate} at ${slotData.start_time}.`,
+                            type: 'timetable',
+                            date: new Date().toISOString(),
+                        });
+                    }
+                    return msgs;
+                });
+
+                await supabase.from('notifications').insert(notifications);
+            }
+        },
+        onSuccess: () => {
+            toast.success('Special class scheduled and notifications sent');
+            queryClient.invalidateQueries({ queryKey: ['special-slots'] });
+            setIsEditDialogOpen(false);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to schedule special class');
+        }
+    });
+
+    const calculatePeriodTimings = (periodIndex: number) => {
+        const slots = calculateAllTimings();
+        const slot = slots.find(s => s.type === 'period' && s.index === periodIndex);
+        return slot ? { start: slot.start, end: slot.end } : { start: '--:--', end: '--:--' };
+    };
+
+    const getBreakAfterPeriod = (type: 'lunch' | 'short' | 'extra') => {
+        const slots = calculateAllTimings();
+        for (let i = 0; i < slots.length; i++) {
+            if (slots[i].type === type && i > 0 && slots[i - 1].type === 'period') {
+                return slots[i - 1].index || -1;
+            }
+        }
+        return -1;
+    };
+
+    const calculateAllTimings = () => {
+        const slots: { type: 'period' | 'lunch' | 'short' | 'extra'; index?: number; start: string; end: string; name?: string }[] = [];
+        try {
+            const [startH, startM] = configData.start_time.split(':').map(Number);
+            let currentMinutes = startH * 60 + startM;
+
+            const [lunchH, lunchM] = configData.lunch_start_time.split(':').map(Number);
+            const lunchStart = lunchH * 60 + lunchM;
+            const lunchDuration = configData.lunch_duration_minutes || 45;
+
+            const [shortH, shortM] = configData.short_break_start_time.split(':').map(Number);
+            const shortStart = shortH * 60 + shortM;
+            const shortDuration = configData.short_break_duration_minutes || 15;
+
+            const allBreaks = [
+                { start: lunchStart, end: lunchStart + lunchDuration, type: 'lunch', name: 'Lunch Break' },
+                { start: shortStart, end: shortStart + shortDuration, type: 'short', name: configData.short_break_name },
+                ...(configData.extra_breaks || []).map(b => {
+                    const [h, m] = b.start_time.split(':').map(Number);
+                    return { start: h * 60 + m, end: (h * 60 + m) + b.duration, type: 'extra', name: b.name };
+                })
+            ].sort((a, b) => a.start - b.start);
+
+            const formatTime = (mins: number) => {
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                const hh = h % 12 || 12;
+                const period = h >= 12 ? 'PM' : 'AM';
+                return `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+            };
+
+            const processedBreaks = new Set();
+
+            for (let i = 1; i <= configData.periods_per_day; i++) {
+                // 1. Process any break that should happen BEFORE this period
+                for (const b of allBreaks) {
+                    if (!processedBreaks.has(b.name) && currentMinutes >= b.start) {
+                        slots.push({ type: b.type as any, start: formatTime(b.start), end: formatTime(b.end), name: b.name });
+                        currentMinutes = Math.max(currentMinutes, b.end);
+                        processedBreaks.add(b.name);
+                    }
+                }
+
+                // 2. CHECK IF THIS PERIOD FITS BEFORE THE NEXT BREAK
+                const nextBreak = allBreaks.find(b => !processedBreaks.has(b.name) && b.start > currentMinutes);
+
+                if (nextBreak && (currentMinutes + configData.period_duration_minutes) > nextBreak.start) {
+                    // RESOLUTION: Period overlaps break. Insert break first.
+                    slots.push({ type: nextBreak.type as any, start: formatTime(nextBreak.start), end: formatTime(nextBreak.end), name: nextBreak.name });
+                    currentMinutes = nextBreak.end;
+                    processedBreaks.add(nextBreak.name);
+                }
+
+                // Start Period
+                const periodStart = currentMinutes;
+                const periodEnd = currentMinutes + configData.period_duration_minutes;
+                slots.push({ type: 'period', index: i, start: formatTime(periodStart), end: formatTime(periodEnd) });
+
+                currentMinutes = periodEnd;
+
+                // 3. ADD BUFFER ONLY IF NO BREAK HEADS OFF THE BUFFER
+                const imminentBreak = allBreaks.find(b => !processedBreaks.has(b.name));
+                if (!imminentBreak || (currentMinutes + configData.buffer_time_minutes) <= imminentBreak.start) {
+                    currentMinutes += configData.buffer_time_minutes;
+                }
+            }
+
+            // Add any remaining breaks
+            for (const b of allBreaks) {
+                if (!processedBreaks.has(b.name)) {
+                    slots.push({ type: b.type as any, start: formatTime(b.start), end: formatTime(b.end), name: b.name });
+                }
+            }
+        } catch (e) {
+            console.error("Timing calculation error:", e);
+        }
+        return slots;
+    };
+
     const handleSlotClick = (day: string, period: number) => {
         const key = `${day}-${period}`;
         const existingSlot = viewTimetableData[key];
+
+        const calculatedTimings = calculatePeriodTimings(period);
 
         setEditingSlot({
             day,
@@ -324,8 +615,8 @@ export function InstitutionTimetable() {
             data: existingSlot || {
                 day_of_week: day,
                 period_index: period,
-                start_time: '09:00',
-                end_time: '10:00',
+                start_time: calculatedTimings.start,
+                end_time: calculatedTimings.end,
             },
         });
         setIsEditDialogOpen(true);
@@ -359,6 +650,61 @@ export function InstitutionTimetable() {
             <PageHeader
                 title="Faculty Timetable"
                 subtitle="View and manage weekly schedules for faculty members"
+                actions={
+                    <div className="flex items-center gap-3">
+                        {isSpecialMode && (
+                            <div className="flex items-center gap-2 mr-4 bg-muted/50 p-1.5 rounded-lg border shadow-sm">
+                                <div className="flex items-center gap-1.5 px-2 border-r pr-3">
+                                    <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <Input
+                                        type="date"
+                                        className="w-[130px] h-7 text-[11px] bg-background border-none focus-visible:ring-0 p-0"
+                                        value={specialClassDate}
+                                        onChange={(e) => setSpecialClassDate(e.target.value)}
+                                    />
+                                </div>
+                                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                                    <SelectTrigger className="w-[110px] h-7 text-[11px] bg-background border-none focus-visible:ring-0">
+                                        <SelectValue placeholder="Class" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Classes</SelectItem>
+                                        {classesData.map((c: any) => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                                    <SelectTrigger className="w-[70px] h-7 text-[11px] bg-background border-none focus-visible:ring-0">
+                                        <SelectValue placeholder="Sec" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All</SelectItem>
+                                        <SelectItem value="A">A</SelectItem>
+                                        <SelectItem value="B">B</SelectItem>
+                                        <SelectItem value="C">C</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        <Button
+                            variant={isSpecialMode ? "default" : "outline"}
+                            className="text-xs font-bold gap-2 shadow-sm"
+                            onClick={() => setIsSpecialMode(!isSpecialMode)}
+                        >
+                            <CalendarIcon className="w-4 h-4" />
+                            {isSpecialMode ? "Weekly View" : "Special Classes"}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setIsConfigDialogOpen(true)}
+                            className="rounded-full shadow-sm"
+                        >
+                            <Settings2 className="w-4 h-4" />
+                        </Button>
+                    </div>
+                }
             />
 
             {!selectedFaculty ? (
@@ -430,50 +776,87 @@ export function InstitutionTimetable() {
                                 <table className="w-full border-collapse min-w-[1000px]">
                                     <thead>
                                         <tr>
-                                            <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0">Day</th>
-                                            {PERIODS.map((p) => (
-                                                <th key={p} className="border p-3 bg-muted/50 text-sm font-medium text-left">
-                                                    Period {p}
-                                                </th>
-                                            ))}
+                                            <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0">
+                                                {isSpecialMode ? "Special Class" : "Day"}
+                                            </th>
+                                            {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
+                                                const timings = calculatePeriodTimings(p);
+                                                return (
+                                                    <Fragment key={p}>
+                                                        <th className="border p-3 bg-muted/50 text-sm font-medium text-left">
+                                                            <div className="font-bold">Period {p}</div>
+                                                            <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
+                                                                {timings.start} - {timings.end}
+                                                            </div>
+                                                        </th>
+                                                        {calculateAllTimings()
+                                                            .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === p)
+                                                            .map((b, bi) => (
+                                                                <th key={bi} className={`border p-3 ${b.type === 'lunch' ? 'bg-orange-50/50 text-orange-600' : 'bg-blue-50/50 text-blue-600'} text-[10px] font-bold text-center uppercase tracking-widest w-16`}>
+                                                                    {b.name}
+                                                                </th>
+                                                            ))}
+                                                    </Fragment>
+                                                );
+                                            })}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {DAYS.map((day) => (
-                                            <tr key={day}>
-                                                <td className="border p-4 font-semibold bg-muted/10 sticky left-0">{day}</td>
-                                                {PERIODS.map((period) => {
-                                                    const key = `${day}-${period}`;
-                                                    const slot = viewTimetableData[key];
+                                        {(isSpecialMode ? [specialClassDate] : DAYS.slice(0, configData.days_per_week)).map((rowLabel) => (
+                                            <tr key={rowLabel}>
+                                                <td className="border p-4 font-semibold bg-muted/10 sticky left-0">
+                                                    {isSpecialMode ? "Scheduled Slots" : rowLabel}
+                                                </td>
+                                                {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                                    const key = `${rowLabel}-${period}`;
+                                                    const slot = isSpecialMode
+                                                        ? specialSlots.find(s => s.period_index === period)
+                                                        : viewTimetableData[key];
+
                                                     return (
-                                                        <td
-                                                            key={period}
-                                                            className="border p-2 min-w-[140px] h-[100px] align-top hover:bg-primary/5 transition-colors cursor-pointer"
-                                                            onClick={() => handleSlotClick(day, period)}
-                                                        >
-                                                            {slot?.subject_id ? (
-                                                                <div className="space-y-1 p-1">
-                                                                    <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
-                                                                        {slot.subject_name || 'Subject'}
-                                                                    </Badge>
-                                                                    <div className="text-xs font-medium pl-1">{slot.class_name || 'Class'}</div>
-                                                                    {(slot.section || slot.room_number) && (
-                                                                        <div className="text-[10px] text-muted-foreground pl-1">
-                                                                            {slot.section && `Sec: ${slot.section}`}
-                                                                            {slot.section && slot.room_number && ' • '}
-                                                                            {slot.room_number && `Rm: ${slot.room_number}`}
+                                                        <Fragment key={period}>
+                                                            <td
+                                                                className="border p-2 min-w-[140px] h-[100px] align-top hover:bg-primary/5 transition-colors cursor-pointer"
+                                                                onClick={() => handleSlotClick(isSpecialMode ? rowLabel : rowLabel, period)}
+                                                            >
+                                                                {slot ? (
+                                                                    <div className="space-y-1 p-1">
+                                                                        <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
+                                                                            {slot.subject_name || (slot as any).subjects?.name || 'Subject'}
+                                                                        </Badge>
+                                                                        <div className="text-xs font-medium pl-1">
+                                                                            {slot.class_name || (slot as any).classes?.name || 'Class'}
                                                                         </div>
-                                                                    )}
-                                                                    <div className="text-[10px] text-muted-foreground pl-1">
-                                                                        {slot.start_time} - {slot.end_time}
+                                                                        {(slot.section || slot.room_number) && (
+                                                                            <div className="text-[10px] text-muted-foreground pl-1">
+                                                                                {slot.section && `Sec: ${slot.section}`}
+                                                                                {slot.section && slot.room_number && ' • '}
+                                                                                {slot.room_number && `Rm: ${slot.room_number}`}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="text-[10px] text-muted-foreground pl-1">
+                                                                            {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
+                                                                        </div>
+                                                                        {isSpecialMode && (
+                                                                            <Badge variant="outline" className="mt-1 text-[8px] h-4 bg-orange-50 text-orange-600 border-orange-200">SPECIAL</Badge>
+                                                                        )}
                                                                     </div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 text-xs hover:text-muted-foreground/40">
-                                                                    Click to add
-                                                                </div>
-                                                            )}
-                                                        </td>
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 text-xs hover:text-muted-foreground/40">
+                                                                        Click to {isSpecialMode ? "schedule" : "add"}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            {calculateAllTimings()
+                                                                .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === period)
+                                                                .map((b, bi) => (
+                                                                    <td key={bi} className={`border p-2 ${b.type === 'lunch' ? 'bg-orange-50/20' : 'bg-blue-50/20'} align-middle text-center`}>
+                                                                        <div className={`[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold ${b.type === 'lunch' ? 'text-orange-400' : 'text-blue-400'} tracking-[0.2em] uppercase mx-auto`}>
+                                                                            {b.name}
+                                                                        </div>
+                                                                    </td>
+                                                                ))}
+                                                        </Fragment>
                                                     );
                                                 })}
                                             </tr>
@@ -487,6 +870,231 @@ export function InstitutionTimetable() {
             )}
 
             {/* Edit Slot Dialog */}
+            {/* Configuration Dialog */}
+            <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
+                <DialogContent className="max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col p-0">
+                    <DialogHeader className="p-6 pb-2">
+                        <DialogTitle>Timetable Configuration</DialogTitle>
+                        <DialogDescription>
+                            Configure the default structure for all timetables in your institution.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto p-6 pt-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">General Settings</h4>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold">Periods Per Day</label>
+                                        <Input
+                                            type="number"
+                                            value={configData.periods_per_day}
+                                            onChange={(e) => setConfigData({ ...configData, periods_per_day: parseInt(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold">Days Per Week</label>
+                                        <Select value={String(configData.days_per_week)} onValueChange={(v) => setConfigData({ ...configData, days_per_week: parseInt(v) })}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="5">5 Days (Mon-Fri)</SelectItem>
+                                                <SelectItem value="6">6 Days (Mon-Sat)</SelectItem>
+                                                <SelectItem value="7">7 Days (Full Week)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold">Period Duration (min)</label>
+                                        <Input
+                                            type="number"
+                                            value={configData.period_duration_minutes}
+                                            onChange={(e) => setConfigData({ ...configData, period_duration_minutes: parseInt(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold">Buffer (min)</label>
+                                        <Input
+                                            type="number"
+                                            value={configData.buffer_time_minutes}
+                                            onChange={(e) => setConfigData({ ...configData, buffer_time_minutes: parseInt(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold">Default Start Time</label>
+                                        <Input
+                                            type="time"
+                                            value={configData.start_time}
+                                            onChange={(e) => setConfigData({ ...configData, start_time: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="border-t pt-4 grid grid-cols-1 gap-4">
+                                        <div className="space-y-4">
+                                            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Lunch Break</h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-semibold">Start Time</label>
+                                                    <Input
+                                                        type="time"
+                                                        value={configData.lunch_start_time}
+                                                        onChange={(e) => setConfigData({ ...configData, lunch_start_time: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-semibold">Duration (min)</label>
+                                                    <Input
+                                                        type="number"
+                                                        value={configData.lunch_duration_minutes}
+                                                        onChange={(e) => setConfigData({ ...configData, lunch_duration_minutes: parseInt(e.target.value) || 0 })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="border-t pt-4 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Short Breaks (Refreshments)</h4>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] gap-1"
+                                                    onClick={() => setConfigData({
+                                                        ...configData,
+                                                        extra_breaks: [...(configData.extra_breaks || []), { name: 'Recess', start_time: '11:00', duration: 15 }]
+                                                    })}
+                                                >
+                                                    <Plus className="w-3 h-3" /> Add Break
+                                                </Button>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {/* Legacy Short Break (kept for backward compatibility UI, but it's now just part of the list logic) */}
+                                                <div className="p-3 border rounded-lg bg-muted/10 space-y-3">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">{configData.short_break_name}</label>
+                                                        <Input
+                                                            className="h-8 text-sm"
+                                                            value={configData.short_break_name}
+                                                            onChange={(e) => setConfigData({ ...configData, short_break_name: e.target.value })}
+                                                            placeholder="Break Name"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] font-bold uppercase opacity-60">Start Time</label>
+                                                            <Input
+                                                                type="time"
+                                                                className="h-8 text-sm"
+                                                                value={configData.short_break_start_time}
+                                                                onChange={(e) => setConfigData({ ...configData, short_break_start_time: e.target.value })}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] font-bold uppercase opacity-60">Duration (min)</label>
+                                                            <Input
+                                                                type="number"
+                                                                className="h-8 text-sm"
+                                                                value={configData.short_break_duration_minutes}
+                                                                onChange={(e) => setConfigData({ ...configData, short_break_duration_minutes: parseInt(e.target.value) || 0 })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Dynamic Extra Breaks */}
+                                                {(configData.extra_breaks || []).map((breakItem, index) => (
+                                                    <div key={index} className="p-3 border rounded-lg bg-muted/20 space-y-3 relative group">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10"
+                                                            onClick={() => {
+                                                                const newBreaks = [...configData.extra_breaks];
+                                                                newBreaks.splice(index, 1);
+                                                                setConfigData({ ...configData, extra_breaks: newBreaks });
+                                                            }}
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </Button>
+                                                        <div className="space-y-2">
+                                                            <label className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">Additional Break {index + 1}</label>
+                                                            <Input
+                                                                className="h-8 text-sm font-medium"
+                                                                value={breakItem.name}
+                                                                onChange={(e) => {
+                                                                    const newBreaks = [...configData.extra_breaks];
+                                                                    newBreaks[index] = { ...newBreaks[index], name: e.target.value };
+                                                                    setConfigData({ ...configData, extra_breaks: newBreaks });
+                                                                }}
+                                                                placeholder="Break Name"
+                                                            />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="space-y-1">
+                                                                <label className="text-[9px] font-bold uppercase opacity-60">Start Time</label>
+                                                                <Input
+                                                                    type="time"
+                                                                    className="h-8 text-sm"
+                                                                    value={breakItem.start_time}
+                                                                    onChange={(e) => {
+                                                                        const newBreaks = [...configData.extra_breaks];
+                                                                        newBreaks[index] = { ...newBreaks[index], start_time: e.target.value };
+                                                                        setConfigData({ ...configData, extra_breaks: newBreaks });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[9px] font-bold uppercase opacity-60">Duration (min)</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    className="h-8 text-sm"
+                                                                    value={breakItem.duration}
+                                                                    onChange={(e) => {
+                                                                        const newBreaks = [...configData.extra_breaks];
+                                                                        newBreaks[index] = { ...newBreaks[index], duration: parseInt(e.target.value) || 0 };
+                                                                        setConfigData({ ...configData, extra_breaks: newBreaks });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-muted/30 rounded-lg p-4 border border-dashed">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Schedule Preview
+                                </h4>
+                                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {(calculateAllTimings() as any[]).map((slot, i) => (
+                                        <div key={i} className={`flex items-center justify-between p-2 rounded text-[11px] ${slot.type === 'lunch' ? 'bg-orange-100/50 text-orange-700 font-bold border border-orange-200' :
+                                            slot.type === 'short' ? 'bg-blue-100/50 text-blue-700 font-bold border border-blue-200' :
+                                                'bg-background border'}`}>
+                                            <span>{slot.type === 'lunch' ? 'LUNCH BREAK' : slot.type === 'short' ? slot.name?.toUpperCase() : `Period ${slot.index}`}</span>
+                                            <span className="font-medium opacity-80">{slot.start} - {slot.end}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-6 pt-2 border-t mt-auto">
+                        <Button variant="outline" onClick={() => setIsConfigDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={() => saveConfigMutation.mutate()} disabled={saveConfigMutation.isPending}>
+                            {saveConfigMutation.isPending ? "Saving..." : "Save Configuration"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
@@ -506,10 +1114,18 @@ export function InstitutionTimetable() {
                                     <label className="text-sm font-medium">Start Time</label>
                                     <div className="grid grid-cols-3 gap-2">
                                         <Select
-                                            value={editingSlot.data.start_time?.split(':')[0] || '09'}
+                                            value={(() => {
+                                                const h = parseInt(editingSlot.data.start_time?.split(':')[0] || '09');
+                                                const converted = h % 12 || 12;
+                                                return String(converted).padStart(2, '0');
+                                            })()}
                                             onValueChange={(hour) => {
-                                                const [_, minute] = (editingSlot.data.start_time || '09:00').split(':');
-                                                updateEditingSlot('start_time', `${hour}:${minute}`);
+                                                const [oldHour, minute] = (editingSlot.data.start_time || '09:00').split(':');
+                                                const isPM = parseInt(oldHour) >= 12;
+                                                let newHour = parseInt(hour);
+                                                if (isPM && newHour < 12) newHour += 12;
+                                                if (!isPM && newHour === 12) newHour = 0;
+                                                updateEditingSlot('start_time', `${String(newHour).padStart(2, '0')}:${minute}`);
                                             }}
                                         >
                                             <SelectTrigger className="h-9">
@@ -567,10 +1183,18 @@ export function InstitutionTimetable() {
                                     <label className="text-sm font-medium">End Time</label>
                                     <div className="grid grid-cols-3 gap-2">
                                         <Select
-                                            value={editingSlot.data.end_time?.split(':')[0] || '10'}
+                                            value={(() => {
+                                                const h = parseInt(editingSlot.data.end_time?.split(':')[0] || '10');
+                                                const converted = h % 12 || 12;
+                                                return String(converted).padStart(2, '0');
+                                            })()}
                                             onValueChange={(hour) => {
-                                                const [_, minute] = (editingSlot.data.end_time || '10:00').split(':');
-                                                updateEditingSlot('end_time', `${hour}:${minute}`);
+                                                const [oldHour, minute] = (editingSlot.data.end_time || '10:00').split(':');
+                                                const isPM = parseInt(oldHour) >= 12;
+                                                let newHour = parseInt(hour);
+                                                if (isPM && newHour < 12) newHour += 12;
+                                                if (!isPM && newHour === 12) newHour = 0;
+                                                updateEditingSlot('end_time', `${String(newHour).padStart(2, '0')}:${minute}`);
                                             }}
                                         >
                                             <SelectTrigger className="h-9">
@@ -710,15 +1334,15 @@ export function InstitutionTimetable() {
                             Cancel
                         </Button>
                         <Button
-                            onClick={() => saveSlotMutation.mutate()}
-                            disabled={saveSlotMutation.isPending}
+                            onClick={() => isSpecialMode ? saveSpecialSlotMutation.mutate() : saveSlotMutation.mutate()}
+                            disabled={isSpecialMode ? saveSpecialSlotMutation.isPending : saveSlotMutation.isPending}
                         >
                             <Save className="w-4 h-4 mr-2" />
-                            Save Slot
+                            {isSpecialMode ? "Schedule Special Class" : "Save Slot"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </InstitutionLayout>
+        </InstitutionLayout >
     );
 }

@@ -404,17 +404,30 @@ export function InstitutionFacultyAssigning() {
     const [selectedClassForEdit, setSelectedClassForEdit] = useState<ClassSection | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    // Filter classes based on search
-    const filteredClasses = useMemo(() => {
-        return allClasses.filter(c =>
+    // Group classes by name for hierarchical display
+    const groupedClasses = useMemo(() => {
+        const filtered = allClasses.filter(c =>
             c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             c.section.toLowerCase().includes(searchQuery.toLowerCase())
-        ).sort((a, b) => {
-            const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
-            const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
-            if (numA !== numB) return numA - numB;
-            return a.section.localeCompare(b.section);
+        );
+
+        const groups: Record<string, typeof allClasses> = {};
+
+        filtered.forEach(c => {
+            if (!groups[c.name]) groups[c.name] = [];
+            groups[c.name].push(c);
         });
+
+        // Sort class names numerically/alphabetically
+        return Object.entries(groups).sort((a, b) => {
+            const numA = parseInt(a[0].replace(/\D/g, '')) || 0;
+            const numB = parseInt(b[0].replace(/\D/g, '')) || 0;
+            if (numA !== numB) return numA - numB;
+            return a[0].localeCompare(b[0]);
+        }).map(([name, sections]) => ({
+            name,
+            sections: sections.sort((a, b) => a.section.localeCompare(b.section))
+        }));
     }, [allClasses, searchQuery]);
 
     const handleEditClick = (cls: ClassSection) => {
@@ -441,99 +454,121 @@ export function InstitutionFacultyAssigning() {
                     />
                 </div>
 
-                {/* Grid of Class Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredClasses.length === 0 ? (
-                        <div className="col-span-full py-12 text-center bg-card rounded-xl border border-dashed border-muted-foreground/30 shadow-sm">
-                            <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                            <p className="text-muted-foreground">No classes found matching your search.</p>
+                {/* Grid of Class Groups */}
+                <div className="space-y-12">
+                    {groupedClasses.length === 0 ? (
+                        <div className="py-20 text-center bg-card rounded-2xl border border-dashed border-muted-foreground/20 shadow-sm">
+                            <Users className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-muted-foreground">No classes found</h3>
+                            <p className="text-sm text-muted-foreground/60 max-w-xs mx-auto">Try adjusting your search to find the class or section you're looking for.</p>
                         </div>
                     ) : (
-                        filteredClasses.map((cls) => {
-                            const ctId = getClassTeacher(cls.id, cls.section);
-                            const classTeacher = allStaffMembers.find(s => s.id === ctId);
-
-                            return (
-                                <div key={`${cls.id}-${cls.section}`} className="group relative bg-card hover:bg-muted/10 transition-all border rounded-xl overflow-hidden shadow-sm hover:shadow-md border-primary/5">
-                                    <div className="p-5">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                    <span className="text-primary font-bold text-lg">{cls.name.replace(/\D/g, '') || cls.name[0]}</span>
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-base leading-tight">{cls.name}</h4>
-                                                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Section {cls.section}</p>
-                                                </div>
-                                            </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleEditClick(cls)}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-primary/10 text-primary"
-                                            >
-                                                <ChevronRight className="w-5 h-5" />
-                                            </Button>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {/* Class Teacher Indicator */}
-                                            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border/50">
-                                                <GraduationCap className="w-4 h-4 text-primary shrink-0" />
-                                                <div className="flex-1 overflow-hidden">
-                                                    <span className="block text-[10px] text-muted-foreground font-semibold uppercase tracking-tighter">Class Teacher</span>
-                                                    <span className="block text-sm font-medium truncate">
-                                                        {classTeacher ? classTeacher.name : <span className="text-muted-foreground italic">Unassigned</span>}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Subject Summary */}
-                                            <div className="space-y-1.5 pt-1">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-                                                        <BookOpen className="w-3 h-3" /> Subject Staff
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {allSubjects.slice(0, 4).map(sub => {
-                                                        const assigned = getAssignedStaff(cls.id, cls.section, sub.id);
-                                                        if (assigned.length === 0) return null;
-                                                        return (
-                                                            <div key={sub.id} className="px-2 py-0.5 rounded-md bg-white border text-[10px] shadow-xs flex items-center gap-1">
-                                                                <span className="font-bold opacity-60">{sub.name.substring(0, 3)}:</span>
-                                                                <span className="font-medium">{assigned[0].name.split(' ')[0]}</span>
-                                                                {assigned.length > 1 && <span className="opacity-40">+{assigned.length - 1}</span>}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {allSubjects.length > 4 && (
-                                                        <span className="text-[10px] text-muted-foreground px-1 self-center">...</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+                        groupedClasses.map((group) => (
+                            <div key={group.name} className="space-y-4">
+                                {/* Class Header */}
+                                <div className="flex items-center gap-3 px-1">
+                                    <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
+                                        <span className="font-bold text-lg">{group.name.replace(/\D/g, '') || group.name[0]}</span>
                                     </div>
-
-                                    <div className="px-5 py-3 bg-muted/20 border-t flex justify-between items-center bg-gray-50/50">
-                                        <div className="flex -space-x-1.5">
-                                            {/* Mini Avatars logic could go here */}
-                                            <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">
-                                                <Users className="w-3 h-3" />
-                                            </div>
-                                        </div>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleEditClick(cls)}
-                                            className="h-8 text-[11px] font-bold hover:bg-primary hover:text-white transition-all shadow-xs border-primary/20"
-                                        >
-                                            Manage Assignments
-                                        </Button>
+                                    <div>
+                                        <h3 className="text-xl font-bold tracking-tight">{group.name}</h3>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{group.sections.length} {group.sections.length === 1 ? 'Section' : 'Sections'} Available</p>
                                     </div>
+                                    <div className="flex-1 border-b border-dashed border-primary/20 ml-4"></div>
                                 </div>
-                            );
-                        })
+
+                                {/* Section Cards Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {group.sections.map((cls) => {
+                                        const ctId = getClassTeacher(cls.id, cls.section);
+                                        const classTeacher = allStaffMembers.find(s => s.id === ctId);
+
+                                        return (
+                                            <div key={`${cls.id}-${cls.section}`} className="group relative bg-card hover:bg-muted/5 transition-all border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 border-primary/5 active:scale-[0.98]">
+                                                <div className="p-5">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div>
+                                                            <h4 className="font-bold text-lg leading-tight text-primary">Section {cls.section}</h4>
+                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-60 mt-0.5">{group.name}</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleEditClick(cls)}
+                                                            className="rounded-full hover:bg-primary/10 text-primary h-8 w-8"
+                                                        >
+                                                            <Settings2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        {/* Class Teacher Indicator */}
+                                                        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 transition-colors group-hover:bg-primary/[0.08]">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                                                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Class Teacher</span>
+                                                            </div>
+                                                            <span className="block text-sm font-semibold truncate">
+                                                                {classTeacher ? classTeacher.name : <span className="text-muted-foreground/50 italic font-medium">Unassigned</span>}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Subject Summary */}
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5 opacity-70">
+                                                                    <BookOpen className="w-3 h-3" /> Subject Staff
+                                                                </span>
+                                                                <span className="text-[9px] font-bold text-primary/60 bg-primary/5 px-1.5 py-0.5 rounded-full">
+                                                                    {allSubjects.filter(s => getAssignedStaff(cls.id, cls.section, s.id).length > 0).length} Assigned
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {allSubjects.slice(0, 3).map(sub => {
+                                                                    const assigned = getAssignedStaff(cls.id, cls.section, sub.id);
+                                                                    if (assigned.length === 0) return null;
+                                                                    return (
+                                                                        <div key={sub.id} className="px-2 py-1 rounded-lg bg-background border text-[10px] shadow-sm flex items-center gap-1 group/chip hover:border-primary/30 transition-colors">
+                                                                            <span className="font-bold text-primary/60">{sub.name.substring(0, 3)}:</span>
+                                                                            <span className="font-medium">{assigned[0].name.split(' ')[0]}</span>
+                                                                            {assigned.length > 1 && <span className="text-primary/40">+{assigned.length - 1}</span>}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                                {allSubjects.filter(s => getAssignedStaff(cls.id, cls.section, s.id).length > 0).length > 3 && (
+                                                                    <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                                                                        +{allSubjects.filter(s => getAssignedStaff(cls.id, cls.section, s.id).length > 0).length - 3}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="px-5 py-3 bg-muted/20 border-t flex justify-between items-center bg-gray-50/50">
+                                                    <div className="flex -space-x-2">
+                                                        {/* Multi-Teacher Avatar Stack Visualization */}
+                                                        {[1, 2, 3].map((i) => (
+                                                            <div key={i} className="w-7 h-7 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary animate-in fade-in zoom-in" style={{ animationDelay: `${i * 100}ms` }}>
+                                                                <Users className="w-3 h-3" />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleEditClick(cls)}
+                                                        className="h-8 text-[11px] font-bold hover:bg-primary hover:text-white transition-all shadow-sm border-primary/20 rounded-lg"
+                                                    >
+                                                        Details
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
             </div>

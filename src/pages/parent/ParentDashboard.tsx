@@ -3,13 +3,14 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
-import { Phone, Shield, School, User, Calendar, CreditCard, AlertCircle } from 'lucide-react';
+import { Phone, Shield, School, User, Calendar, CreditCard, AlertCircle, Clock } from 'lucide-react';
+import { Badge } from '@/components/common/Badge';
 
 export function ParentDashboard() {
     const { user } = useAuth();
     const { t } = useTranslation();
 
-    const { stats, children, childrenAttendance, leaveRequests, feeData } = useParentDashboard(
+    const { stats, children, childrenAttendance, leaveRequests, feeData, specialClasses } = useParentDashboard(
         user?.id,
         user?.institutionId
     );
@@ -88,6 +89,42 @@ export function ParentDashboard() {
                 </div>
             </div>
 
+            {/* Special Class Alerts */}
+            {specialClasses.length > 0 && (
+                <div className="mb-8">
+                    <h2 className="text-xl font-semibold mb-4 text-orange-600 flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        Special Class Alerts
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {specialClasses.map((slot: any) => {
+                            const child = children.find(c => c.classId === slot.class_id);
+                            return (
+                                <div key={slot.id} className="bg-orange-50/50 border border-orange-100 rounded-lg p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-orange-100 flex flex-col items-center justify-center text-orange-600">
+                                            <span className="text-[8px] font-bold uppercase">{new Date(slot.event_date).toLocaleString('default', { month: 'short' })}</span>
+                                            <span className="text-sm font-bold leading-none">{new Date(slot.event_date).getDate()}</span>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-sm">{slot.subjects?.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                For {child?.name || 'Your Child'} ({slot.classes?.name} - {slot.section})
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground font-medium">
+                                                <Clock className="w-3 h-3" />
+                                                {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Badge variant="outline" className="bg-white text-orange-600 border-orange-200 text-[10px]">Upcoming</Badge>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* Leave Requests */}
             {leaveRequests.length > 0 && (
                 <div className="mb-8">
@@ -103,8 +140,8 @@ export function ParentDashboard() {
                                     <p className="text-xs text-muted-foreground mt-1">{request.reason}</p>
                                 </div>
                                 <div className={`px-3 py-1 rounded text-xs font-medium ${request.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                        request.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                            'bg-yellow-100 text-yellow-700'
+                                    request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                        'bg-yellow-100 text-yellow-700'
                                     }`}>
                                     {request.status.toUpperCase()}
                                 </div>
