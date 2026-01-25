@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { useInstitution } from '@/context/InstitutionContext';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -11,138 +12,173 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { UserCheck, Plus, X, GraduationCap, Upload, FileText } from 'lucide-react';
+import {
+    UserCheck,
+    Plus,
+    X,
+    GraduationCap,
+    Upload,
+    FileText,
+    Search,
+    Users,
+    BookOpen,
+    Settings2,
+    ChevronRight,
+    Loader2
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/common/Badge';
 import * as XLSX from 'xlsx';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
+// --- TYPES ---
 interface StaffAssignment {
-    id: string; // internal id for UI list key
+    id: string;
     staffName: string;
     staffId: string;
 }
 
-export function InstitutionFacultyAssigning() {
-    // Dynamic data from context
-    // Dynamic data from context
-    const { allClasses, allSubjects, allStaffMembers, getAssignedStaff, assignStaff, getClassTeacher, assignClassTeacher, classTeachers } = useInstitution();
+interface ClassSection {
+    id: string;
+    name: string;
+    section: string;
+}
 
-    // State Variables
-    const [selectedClass, setSelectedClass] = useState<string>('');
-    const [selectedSection, setSelectedSection] = useState<string>('');
+// --- SUB-COMPONENTS ---
+
+function AssignmentDialog({
+    open,
+    onOpenChange,
+    classSection,
+    allStaffMembers,
+    allSubjects,
+    getAssignedStaff,
+    assignStaff,
+    getClassTeacher,
+    assignClassTeacher,
+    classTeachers
+}: any) {
     const [selectedClassTeacher, setSelectedClassTeacher] = useState<string>('');
-    const [selectedSubject, setSelectedSubject] = useState<string>('');
-    const [subjectStaff, setSubjectStaff] = useState<StaffAssignment[]>([]);
-
-    // Compute unique class names and sections from allClasses
-    // allClasses = [{id, name, section}, ...]
-    // uniqueClasses = ['Grade 1', 'Grade 2'...]
-    const uniqueClasses = Array.from(new Set(allClasses.map(c => c.name))).sort((a, b) => {
-        const order = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
-        const indexA = order.findIndex(o => a.startsWith(o)); // simple match
-        const indexB = order.findIndex(o => b.startsWith(o));
-
-        // precise match preferred
-        const exactIndexA = order.indexOf(a);
-        const exactIndexB = order.indexOf(b);
-
-        if (exactIndexA !== -1 && exactIndexB !== -1) return exactIndexA - exactIndexB;
-        if (exactIndexA !== -1) return -1;
-        if (exactIndexB !== -1) return 1;
-
-        // Fallback to numeric extraction if possible
-        const numA = parseInt(a.replace(/\D/g, ''));
-        const numB = parseInt(b.replace(/\D/g, ''));
-        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-
-        return a.localeCompare(b);
-    });
-
-    // Derived sections for selected class
-    const [availableSections, setAvailableSections] = useState<string[]>([]);
-
-    useEffect(() => {
-        if (selectedClass) {
-            const sections = allClasses
-                .filter(c => c.name === selectedClass)
-                .map(c => c.section)
-                .sort();
-            setAvailableSections(sections);
-            // Reset section if not in new list
-            if (selectedSection && !sections.includes(selectedSection)) {
-                setSelectedSection('');
-            }
-        } else {
-            setAvailableSections([]);
-        }
-    }, [selectedClass, allClasses]);
-
-    // Load Class Teacher when Class/Section changes
-    useEffect(() => {
-        if (selectedClass && selectedSection) {
-            // Find the class ID for this combination to be precise, or just use name/section if context expects that.
-            // assignStaff/getClassTeacher expect name/section strings as per context definition? 
-            // Wait, looking at context in previous turn: 
-            // const getClassTeacher = (classId: string, section: string) 
-            // It expects classId (UUID) and section.
-            // But here we are selecting 'class Name'. We need to find the UUID.
-            const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
-            const classId = classObj ? classObj.id : '';
-
-            if (classId) {
-                const ctId = getClassTeacher(classId, selectedSection);
-                setSelectedClassTeacher(ctId || '');
-            }
-        } else {
-            setSelectedClassTeacher('');
-        }
-    }, [selectedClass, selectedSection, getClassTeacher]);
-
-    // Load existing Subject assignments when Subject (or Class/Section) changes
-    useEffect(() => {
-        if (selectedClass && selectedSection && selectedSubject) {
-            const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
-            const classId = classObj ? classObj.id : '';
-
-            if (classId) {
-                const assigned = getAssignedStaff(classId, selectedSection, selectedSubject);
-
-                // Map to UI format
-                const uiStaff = assigned.map(s => ({
-                    id: Math.random().toString(36).substr(2, 9),
-                    staffId: s.id,
-                    staffName: s.name
-                }));
-
-                setSubjectStaff(uiStaff);
-            } else {
-                setSubjectStaff([]);
-            }
-        } else {
-            setSubjectStaff([]);
-        }
-    }, [selectedClass, selectedSection, selectedSubject, getAssignedStaff, allClasses]);
-
-    const handleAddStaff = () => {
-        if (selectedSubject) {
-            const newStaff: StaffAssignment = {
-                id: Date.now().toString(),
-                staffName: '',
-                staffId: ''
-            };
-            setSubjectStaff([...subjectStaff, newStaff]);
-        } else {
-            toast.error("Please select a subject first.");
-        }
-    };
-
-    const handleRemoveStaff = (id: string) => {
-        setSubjectStaff(subjectStaff.filter(s => s.id !== id));
-    };
-
+    const [subjectAssignments, setSubjectAssignments] = useState<Record<string, StaffAssignment[]>>({});
+    const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleBulkUpdate = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Filtered staff for Class Teacher: Only show those NOT assigned elsewhere
+    const availableClassTeachers = useMemo(() => {
+        const assignedElsewhere = new Set<string>();
+        if (classTeachers) {
+            Object.entries(classTeachers).forEach(([cId, sections]: [string, any]) => {
+                Object.entries(sections).forEach(([sec, tId]: [string, any]) => {
+                    // Skip the current class/section we are editing
+                    if (cId === classSection?.id && sec === classSection?.section) return;
+                    assignedElsewhere.add(tId);
+                });
+            });
+        }
+        return allStaffMembers.filter((s: any) => !assignedElsewhere.has(s.id));
+    }, [allStaffMembers, classTeachers, classSection]);
+
+    // Load initial data for ALL subjects when dialog opens
+    useMemo(() => {
+        if (open && classSection) {
+            const ctId = getClassTeacher(classSection.id, classSection.section);
+            setSelectedClassTeacher(ctId || 'unassigned');
+
+            const initialMap: Record<string, StaffAssignment[]> = {};
+            // Pre-load subjects that already have staff
+            allSubjects.forEach((sub: any) => {
+                const assigned = getAssignedStaff(classSection.id, classSection.section, sub.id);
+                if (assigned.length > 0) {
+                    initialMap[sub.id] = assigned.map((s: any) => ({
+                        id: Math.random().toString(36).substr(2, 9),
+                        staffId: s.id,
+                        staffName: s.name
+                    }));
+                }
+            });
+            setSubjectAssignments(initialMap);
+        }
+    }, [open, classSection, getClassTeacher, allSubjects]);
+
+    const handleAddSubject = (subjectId: string) => {
+        if (!subjectId || subjectId === 'placeholder') return;
+        if (subjectAssignments[subjectId]) {
+            toast.error("Subject already added");
+            return;
+        }
+        setSubjectAssignments({
+            ...subjectAssignments,
+            [subjectId]: [{ id: Date.now().toString(), staffName: '', staffId: '' }]
+        });
+    };
+
+    const handleRemoveStaff = (subjectId: string, id: string) => {
+        const current = subjectAssignments[subjectId] || [];
+        const filtered = current.filter(s => s.id !== id);
+
+        if (filtered.length === 0) {
+            const next = { ...subjectAssignments };
+            delete next[subjectId];
+            setSubjectAssignments(next);
+        } else {
+            setSubjectAssignments({ ...subjectAssignments, [subjectId]: filtered });
+        }
+    };
+
+    const handleAddStaffToSubject = (subjectId: string) => {
+        const current = subjectAssignments[subjectId] || [];
+        setSubjectAssignments({
+            ...subjectAssignments,
+            [subjectId]: [...current, { id: Date.now().toString(), staffName: '', staffId: '' }]
+        });
+    };
+
+    const handleStaffChange = (subjectId: string, id: string, staffId: string) => {
+        const staff = allStaffMembers.find((s: any) => s.id === staffId);
+        if (staff) {
+            const updated = subjectAssignments[subjectId].map(s =>
+                s.id === id ? { ...s, staffId: staff.id, staffName: staff.name } : s
+            );
+            setSubjectAssignments({ ...subjectAssignments, [subjectId]: updated });
+        }
+    };
+
+    const handleSave = async () => {
+        if (!classSection) return;
+        setIsSaving(true);
+        try {
+            // 1. Save Class Teacher
+            await assignClassTeacher(classSection.id, classSection.section, selectedClassTeacher === 'unassigned' ? '' : selectedClassTeacher);
+
+            // 2. Save ALL subject assignments
+            // We loop through all subjects to ensure deleted subjects are also wiped
+            const promises = allSubjects.map(async (sub: any) => {
+                const staffList = subjectAssignments[sub.id] || [];
+                const ids = staffList.map(s => s.staffId).filter(Boolean);
+
+                // assignStaff internally handles deleting existing and inserting new
+                return assignStaff(classSection.id, classSection.section, sub.id, ids);
+            });
+
+            await Promise.all(promises);
+
+            toast.success("All assignments updated successfully");
+            onOpenChange(false);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to save");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleBulkUpdate = (event: React.ChangeEvent<HTMLInputElement>, subjectId: string) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -151,423 +187,405 @@ export function InstitutionFacultyAssigning() {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-                const newAssignments: StaffAssignment[] = [];
-                let skipCount = 0;
-
-                // Skip header if it exists
+                const matches: StaffAssignment[] = [];
                 const startRow = (jsonData[0]?.[0]?.toString().toLowerCase().includes('name') ||
-                    jsonData[0]?.[0]?.toString().toLowerCase().includes('staff') ||
                     jsonData[0]?.[0]?.toString().toLowerCase().includes('id')) ? 1 : 0;
 
                 for (let i = startRow; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-                    if (!row || row.length === 0) continue;
-
-                    const input = row[0]?.toString().trim();
+                    const input = jsonData[i][0]?.toString().trim();
                     if (!input) continue;
 
-                    // Try to find staff by ID or Name
-                    const staff = allStaffMembers.find(s =>
+                    const staff = allStaffMembers.find((s: any) =>
                         s.id.toLowerCase() === input.toLowerCase() ||
                         s.name.toLowerCase() === input.toLowerCase()
                     );
 
-                    if (staff) {
-                        // Avoid duplicates in the current list
-                        if (!subjectStaff.some(s => s.staffId === staff.id) && !newAssignments.some(s => s.staffId === staff.id)) {
-                            newAssignments.push({
-                                id: (Date.now() + i).toString(),
-                                staffId: staff.id,
-                                staffName: staff.name
-                            });
-                        }
-                    } else {
-                        skipCount++;
+                    if (staff && !matches.some(m => m.staffId === staff.id)) {
+                        matches.push({ id: (Date.now() + i).toString(), staffId: staff.id, staffName: staff.name });
                     }
                 }
-
-                if (newAssignments.length > 0) {
-                    setSubjectStaff(prev => [...prev, ...newAssignments]);
-                    toast.success(`Successfully added ${newAssignments.length} staff members.`);
-                }
-
-                if (skipCount > 0) {
-                    toast.warning(`${skipCount} names in the file didn't match our staff records.`);
-                }
-
-                if (newAssignments.length === 0 && skipCount === 0) {
-                    toast.info("The file appears to be empty or in an incorrect format.");
-                }
-
-            } catch (error) {
-                console.error("Bulk update error:", error);
-                toast.error("Format error: Please ensure you upload a valid Excel or CSV file.");
+                const current = subjectAssignments[subjectId] || [];
+                setSubjectAssignments({
+                    ...subjectAssignments,
+                    [subjectId]: [...current, ...matches]
+                });
+                toast.success(`Matched ${matches.length} staff members.`);
+            } catch (err) {
+                toast.error("Failed to parse file");
             }
         };
         reader.readAsArrayBuffer(file);
-
-        // Reset file input
-        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const handleStaffChange = (id: string, staffId: string) => {
-        const selectedStaff = allStaffMembers.find(s => s.id === staffId);
-        if (selectedStaff) {
-            setSubjectStaff(subjectStaff.map(s =>
-                s.id === id
-                    ? { ...s, staffId: selectedStaff.id, staffName: selectedStaff.name }
-                    : s
-            ));
-        }
-    };
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-3xl max-h-[95vh] flex flex-col p-0">
+                <DialogHeader className="p-6 pb-2">
+                    <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                        <Settings2 className="w-6 h-6 text-primary" />
+                        Manage Assignments: {classSection?.name} - {classSection?.section}
+                    </DialogTitle>
+                    <DialogDescription>Assign the class teacher and manage multiple subjects simultaneously.</DialogDescription>
+                </DialogHeader>
 
-    const handleSubmit = () => {
-        if (selectedClass && selectedSection) {
-            let hasErrors = false;
+                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                    {/* Class Teacher Section */}
+                    <section className="bg-primary/5 p-5 rounded-xl border border-primary/10 shadow-sm transition-all hover:shadow-md">
+                        <Label className="text-sm font-bold mb-3 block flex items-center gap-2 text-primary">
+                            <GraduationCap className="w-5 h-5" /> Class Teacher Assignment
+                        </Label>
+                        <Select value={selectedClassTeacher} onValueChange={setSelectedClassTeacher}>
+                            <SelectTrigger className="bg-background h-11 border-primary/20 hover:border-primary transition-colors">
+                                <SelectValue placeholder={allStaffMembers.length === 0 ? "Loading staff..." : "Select Class Teacher"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="unassigned" className="text-muted-foreground italic font-medium">No Class Teacher / Unassign</SelectItem>
+                                {availableClassTeachers.map((s: any) => (
+                                    <SelectItem key={s.id} value={s.id} className="font-medium">{s.name}</SelectItem>
+                                ))}
+                                {allStaffMembers.length > 0 && availableClassTeachers.length === 0 && (
+                                    <SelectItem value="none" disabled className="text-xs text-center py-4">
+                                        All {allStaffMembers.length} staff members are already assigned to other classes.
+                                    </SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
+                        <div className="flex justify-between items-center mt-2 px-1">
+                            <p className="text-[10px] text-muted-foreground">
+                                {allStaffMembers.length} staff profiles found.
+                            </p>
+                            {allStaffMembers.length - availableClassTeachers.length > 0 && (
+                                <p className="text-[10px] text-destructive/70 font-medium">
+                                    {allStaffMembers.length - availableClassTeachers.length} assigned elsewhere.
+                                </p>
+                            )}
+                        </div>
+                    </section>
 
-            // validate Class Teacher (optional? usually required)
-            // if required:
-            if (!selectedClassTeacher) {
-                toast.error("Please select a Class Teacher.");
-                hasErrors = true;
-            }
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
+                        <div className="relative flex justify-center"><span className="bg-background px-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Subject Faculty</span></div>
+                    </div>
 
-            // Save Class Teacher
-            if (selectedClassTeacher) {
-                const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
-                if (classObj) assignClassTeacher(classObj.id, selectedSection, selectedClassTeacher);
-            }
+                    {/* Multi-Subject List Section */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-4">
+                            <Label className="text-sm font-bold whitespace-nowrap">Add Subject:</Label>
+                            <div className="flex-1">
+                                <Select onValueChange={handleAddSubject}>
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Select a subject to add..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="placeholder" disabled>Choose a subject</SelectItem>
+                                        {allSubjects.map((sub: any) => (
+                                            <SelectItem key={sub.id} value={sub.id} disabled={!!subjectAssignments[sub.id]}>
+                                                {sub.name} {subjectAssignments[sub.id] ? '(Added)' : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
-            // Save Subject Staff
-            if (selectedSubject) {
-                // Validate subject staff 
-                if (subjectStaff.length > 0 && subjectStaff.some(s => !s.staffId)) {
-                    toast.error("Please select a staff member for all subject assignment rows.");
-                    hasErrors = true;
-                }
+                        {Object.keys(subjectAssignments).length === 0 ? (
+                            <div className="text-center py-12 bg-muted/10 rounded-xl border-2 border-dashed border-muted-foreground/20">
+                                <BookOpen className="w-10 h-10 text-muted-foreground/20 mx-auto mb-2" />
+                                <p className="text-sm text-muted-foreground">No subjects added for this class yet.</p>
+                                <p className="text-xs text-muted-foreground/60 italic">Start by picking a subject above.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-4 overflow-hidden">
+                                {Object.entries(subjectAssignments).map(([subId, staff]) => {
+                                    const subject = allSubjects.find((s: any) => s.id === subId);
+                                    return (
+                                        <div key={subId} className="group overflow-hidden rounded-xl border bg-card transition-all hover:border-primary/30 shadow-sm">
+                                            <div className="px-4 py-3 bg-muted/30 border-b flex items-center justify-between">
+                                                <div className="flex items-center gap-2 font-bold text-sm">
+                                                    <Badge variant="outline" className="bg-white border-primary/20 text-primary uppercase">
+                                                        {subject?.name}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        id={`bulk-${subId}`}
+                                                        onChange={(e) => handleBulkUpdate(e, subId)}
+                                                        accept=".csv,.xlsx"
+                                                    />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById(`bulk-${subId}`)?.click()}
+                                                        className="h-7 text-[10px] gap-1 hover:bg-primary/10 hover:text-primary transition-colors"
+                                                    >
+                                                        <Upload className="w-3 h-3" /> Bulk
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => handleAddStaffToSubject(subId)}
+                                                        className="h-7 text-[10px] gap-1 font-bold"
+                                                    >
+                                                        <Plus className="w-3 h-3" /> Add Teacher
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="p-4 space-y-3 bg-gray-50/20">
+                                                {staff.map((s) => (
+                                                    <div key={s.id} className="flex item-center gap-2 animate-in fade-in slide-in-from-top-1">
+                                                        <div className="flex-1">
+                                                            <Select value={s.staffId} onValueChange={(val) => handleStaffChange(subId, s.id, val)}>
+                                                                <SelectTrigger className="h-9 bg-background border-muted hover:border-primary/30 transition-colors">
+                                                                    <SelectValue placeholder="Select teacher" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {allStaffMembers.map((m: any) => (
+                                                                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleRemoveStaff(subId, s.id)}
+                                                            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg shrink-0"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                if (!hasErrors) {
-                    const classObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
-                    if (classObj) {
-                        const staffIds = subjectStaff.map(s => s.staffId).filter(Boolean);
-                        assignStaff(classObj.id, selectedSection, selectedSubject, staffIds);
-                    }
-                }
-            } else {
-                // If no subject is selected, we only saved Class Teacher, which is valid.
-                if (!hasErrors) toast.success("Class Teacher saved!");
-            }
+                <div className="p-6 bg-muted/10 border-t flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground italic font-medium">
+                        Remember: One staff member can be Class Teacher only for one class.
+                    </p>
+                    <div className="flex gap-3">
+                        <Button variant="outline" className="font-bold min-w-24" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button onClick={handleSave} disabled={isSaving} className="font-bold shadow-lg shadow-primary/20 min-w-32">
+                            {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                            Save All Changes
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
-            if (!hasErrors && selectedSubject) {
-                // The assignStaff function triggered a toast internally in previous step, so we might get partial double toast if we add one here.
-                // let's rely on assignStaff toast or context toast. 
-                // Actually I removed toast from assignClassTeacher to avoid spam.
-                // Let's just toast "Assignments Saved" once if everything is good.
-                // But assignStaff has toast inside it... I should probably remove it from context or just live with "Subject staff assigned" + "Class teacher saved"
-                // Let's refine context later if needed.
-            }
+// --- MAIN PAGE ---
 
-        } else {
-            toast.error('Please select Class and Section');
-        }
+export function InstitutionFacultyAssigning() {
+    const {
+        allClasses,
+        allSubjects,
+        allStaffMembers,
+        getAssignedStaff,
+        assignStaff,
+        getClassTeacher,
+        assignClassTeacher,
+        classTeachers
+    } = useInstitution();
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedClassForEdit, setSelectedClassForEdit] = useState<ClassSection | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    // Group classes by name for hierarchical display
+    const groupedClasses = useMemo(() => {
+        const filtered = allClasses.filter(c =>
+            c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.section.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        const groups: Record<string, typeof allClasses> = {};
+
+        filtered.forEach(c => {
+            if (!groups[c.name]) groups[c.name] = [];
+            groups[c.name].push(c);
+        });
+
+        // Sort class names numerically/alphabetically
+        return Object.entries(groups).sort((a, b) => {
+            const numA = parseInt(a[0].replace(/\D/g, '')) || 0;
+            const numB = parseInt(b[0].replace(/\D/g, '')) || 0;
+            if (numA !== numB) return numA - numB;
+            return a[0].localeCompare(b[0]);
+        }).map(([name, sections]) => ({
+            name,
+            sections: sections.sort((a, b) => a.section.localeCompare(b.section))
+        }));
+    }, [allClasses, searchQuery]);
+
+    const handleEditClick = (cls: ClassSection) => {
+        setSelectedClassForEdit(cls);
+        setIsDialogOpen(true);
     };
 
     return (
         <InstitutionLayout>
             <PageHeader
                 title="Faculty Assigning"
-                subtitle="Assign teachers to classes, sections, and subjects"
+                subtitle="Manage class teachers and subject faculty assignments"
             />
 
-            <div className="dashboard-card p-6">
+            <div className="space-y-6">
+                {/* Search Bar */}
+                <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search class or section..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
 
-                {/* Unified Form */}
-                <div className="space-y-8">
-
-                    {/* 1. Class Selection Row */}
-                    <div>
-                        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                            <UserCheck className="w-5 h-5 text-primary" />
-                            Class & Section Selection
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="class">Select Class *</Label>
-                                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Choose class" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {uniqueClasses.map((cls) => (
-                                            <SelectItem key={cls} value={cls}>{cls}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label htmlFor="section">Select Section *</Label>
-                                <Select value={selectedSection} onValueChange={setSelectedSection}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Choose section" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableSections.map((sec) => (
-                                            <SelectItem key={sec} value={sec}>{sec}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                {/* Grid of Class Groups */}
+                <div className="space-y-12">
+                    {groupedClasses.length === 0 ? (
+                        <div className="py-20 text-center bg-card rounded-2xl border border-dashed border-muted-foreground/20 shadow-sm">
+                            <Users className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-muted-foreground">No classes found</h3>
+                            <p className="text-sm text-muted-foreground/60 max-w-xs mx-auto">Try adjusting your search to find the class or section you're looking for.</p>
                         </div>
-                    </div>
-
-                    <div className="border-t pt-6"></div>
-
-                    {/* 2. Class Teacher Assignment */}
-                    {selectedClass && selectedSection && (
-                        <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
-                            <h3 className="text-md font-semibold flex items-center gap-2 mb-3 text-primary">
-                                <GraduationCap className="w-5 h-5" />
-                                Class Teacher Assignment
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="classTeacher">Assign Class Teacher (One per class) *</Label>
-                                    <Select value={selectedClassTeacher} onValueChange={setSelectedClassTeacher}>
-                                        <SelectTrigger className="bg-background">
-                                            <SelectValue placeholder="Choose Class Teacher" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {(() => {
-                                                // Calculate assigned teachers across all classes
-                                                const assignedTeacherIds = new Set<string>();
-                                                if (classTeachers) { // classTeachers is from context
-                                                    Object.entries(classTeachers).forEach(([cId, sections]) => {
-                                                        Object.entries(sections).forEach(([sec, tId]) => {
-                                                            // Don't count the current class/section's teacher as "unavailable" for itself
-                                                            // We need the ID of the current selected class.
-                                                            // We derive classId from Name+Section logic elsewhere, but simpler:
-                                                            // If tId is the *current value* (selectedClassTeacher), keep it.
-                                                            // Actually, simpler: Collect ALL. Then filter.
-                                                            assignedTeacherIds.add(String(tId));
-                                                        });
-                                                    });
-                                                }
-
-                                                const currentlyAssignedToThisClass = selectedClassTeacher;
-
-                                                const availableStaff = allStaffMembers.filter(staff => {
-                                                    // Allow if not assigned anywhere OR if assigned to THIS class (aka is the current val)
-                                                    // Note: We need to know if the assignment in `assignedTeacherIds` belongs to THIS class or another.
-                                                    // The set doesn't tell us source.
-                                                    // Better approach: Re-calculate set of "Other Class Teachers".
-                                                    return true;
-                                                }).filter(staff => {
-                                                    // Check if staff is assigned to ANY OTHER class
-                                                    // Iterate classTeachers map
-                                                    let isAssignedElsewhere = false;
-                                                    if (classTeachers) {
-                                                        Object.entries(classTeachers).forEach(([cId, sections]) => {
-                                                            Object.entries(sections).forEach(([sec, tId]) => {
-                                                                if (tId === staff.id) {
-                                                                    // Found an assignment. Is it THIS class?
-                                                                    const clsObj = allClasses.find(c => c.id === cId && c.section === sec);
-                                                                    if (clsObj) {
-                                                                        if (clsObj.name === selectedClass && clsObj.section === selectedSection) {
-                                                                            // Assigned to this class (ok)
-                                                                        } else {
-                                                                            isAssignedElsewhere = true;
-                                                                        }
-                                                                    } else {
-                                                                        // Fallback: If we can't match class ID, assume it's elsewhere to be safe? 
-                                                                        // Or if we don't have the class ID in allClasses?
-                                                                        // Let's rely on checking if tId === selectedClassTeacher (from state)
-                                                                        // But state might be unsaved.
-                                                                        // Let's rely on the fact that if they are in the map for *another* ID, they are busy.
-                                                                        // We need the current Class ID.
-                                                                        const currentClassObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
-                                                                        if (currentClassObj && cId !== currentClassObj.id) {
-                                                                            isAssignedElsewhere = true;
-                                                                        }
-                                                                        // If IDs match but section different?
-                                                                        if (currentClassObj && cId === currentClassObj.id && sec !== selectedSection) {
-                                                                            isAssignedElsewhere = true;
-                                                                        }
-                                                                    }
-                                                                }
-                                                            });
-                                                        });
-                                                    }
-                                                    return !isAssignedElsewhere;
-                                                });
-
-                                                return availableStaff.map((staff) => (
-                                                    <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
-                                                ));
-                                            })()}
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Only staff not assigned as Class Teacher elsewhere are shown.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 3. Subject Staff Assignment */}
-                    {selectedClass && selectedSection && (
-                        <div>
-                            <h3 className="text-md font-semibold flex items-center gap-2 mb-3">
-                                <UserCheck className="w-5 h-5 text-primary" />
-                                Subject Staff Assignment
-                            </h3>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <Label htmlFor="subject">Select Subject to Assign *</Label>
-                                    <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Choose subject" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {allSubjects.map((sub) => (
-                                                <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            {selectedSubject && (
-                                <div className="space-y-4 border rounded-lg p-4 bg-muted/10">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-base">Teachers for {allSubjects.find(s => s.id === selectedSubject)?.name}</Label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="file"
-                                                ref={fileInputRef}
-                                                onChange={handleBulkUpdate}
-                                                accept=".csv, .xlsx, .xls"
-                                                className="hidden"
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="flex items-center gap-2 border-primary/50 text-primary hover:bg-primary/5 shadow-sm"
-                                            >
-                                                <Upload className="w-4 h-4" />
-                                                Bulk Update
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                onClick={handleAddStaff}
-                                                className="flex items-center gap-2"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                Add Staff
-                                            </Button>
-                                        </div>
+                    ) : (
+                        groupedClasses.map((group) => (
+                            <div key={group.name} className="space-y-4">
+                                {/* Class Header */}
+                                <div className="flex items-center gap-3 px-1">
+                                    <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
+                                        <span className="font-bold text-lg">{group.name.replace(/\D/g, '') || group.name[0]}</span>
                                     </div>
-
-                                    <div className="bg-primary/5 border border-primary/10 rounded-md p-2 flex items-start gap-2 text-[10px] text-muted-foreground shadow-inner">
-                                        <FileText className="w-3 h-3 mt-0.5 text-primary" />
-                                        <div>
-                                            <p className="font-semibold text-primary/80">Bulk Update Format:</p>
-                                            <p>Upload a .csv or .xlsx with a single column containing <strong>Staff Names</strong> or <strong>IDs</strong>.</p>
-                                        </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold tracking-tight">{group.name}</h3>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{group.sections.length} {group.sections.length === 1 ? 'Section' : 'Sections'} Available</p>
                                     </div>
+                                    <div className="flex-1 border-b border-dashed border-primary/20 ml-4"></div>
+                                </div>
 
-                                    {subjectStaff.length === 0 ? (
-                                        <div className="p-6 border-2 border-dashed rounded-lg text-center text-muted-foreground bg-background">
-                                            <p>No staff assigned to {allSubjects.find(s => s.id === selectedSubject)?.name} yet.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {subjectStaff.map((staff) => (
-                                                <div key={staff.id} className="flex items-center gap-3 p-3 bg-background border rounded-lg shadow-sm">
-                                                    <div className="flex-1">
-                                                        <Select
-                                                            value={staff.staffId}
-                                                            onValueChange={(value) => handleStaffChange(staff.id, value)}
+                                {/* Section Cards Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {group.sections.map((cls) => {
+                                        const ctId = getClassTeacher(cls.id, cls.section);
+                                        const classTeacher = allStaffMembers.find(s => s.id === ctId);
+
+                                        return (
+                                            <div key={`${cls.id}-${cls.section}`} className="group relative bg-card hover:bg-muted/5 transition-all border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 border-primary/5 active:scale-[0.98]">
+                                                <div className="p-5">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div>
+                                                            <h4 className="font-bold text-lg leading-tight text-primary">Section {cls.section}</h4>
+                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-60 mt-0.5">{group.name}</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleEditClick(cls)}
+                                                            className="rounded-full hover:bg-primary/10 text-primary h-8 w-8"
                                                         >
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select a teacher" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {allStaffMembers.map((member) => (
-                                                                    <SelectItem key={member.id} value={member.id}>
-                                                                        {member.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            <Settings2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        {/* Class Teacher Indicator */}
+                                                        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 transition-colors group-hover:bg-primary/[0.08]">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                                                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Class Teacher</span>
+                                                            </div>
+                                                            <span className="block text-sm font-semibold truncate">
+                                                                {classTeacher ? classTeacher.name : <span className="text-muted-foreground/50 italic font-medium">Unassigned</span>}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Subject Summary */}
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5 opacity-70">
+                                                                    <BookOpen className="w-3 h-3" /> Subject Staff
+                                                                </span>
+                                                                <span className="text-[9px] font-bold text-primary/60 bg-primary/5 px-1.5 py-0.5 rounded-full">
+                                                                    {allSubjects.filter(s => getAssignedStaff(cls.id, cls.section, s.id).length > 0).length} Assigned
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {allSubjects.slice(0, 3).map(sub => {
+                                                                    const assigned = getAssignedStaff(cls.id, cls.section, sub.id);
+                                                                    if (assigned.length === 0) return null;
+                                                                    return (
+                                                                        <div key={sub.id} className="px-2 py-1 rounded-lg bg-background border text-[10px] shadow-sm flex items-center gap-1 group/chip hover:border-primary/30 transition-colors">
+                                                                            <span className="font-bold text-primary/60">{sub.name.substring(0, 3)}:</span>
+                                                                            <span className="font-medium">{assigned[0].name.split(' ')[0]}</span>
+                                                                            {assigned.length > 1 && <span className="text-primary/40">+{assigned.length - 1}</span>}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                                {allSubjects.filter(s => getAssignedStaff(cls.id, cls.section, s.id).length > 0).length > 3 && (
+                                                                    <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                                                                        +{allSubjects.filter(s => getAssignedStaff(cls.id, cls.section, s.id).length > 0).length - 3}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="px-5 py-3 bg-muted/20 border-t flex justify-between items-center bg-gray-50/50">
+                                                    <div className="flex -space-x-2">
+                                                        {/* Multi-Teacher Avatar Stack Visualization */}
+                                                        {[1, 2, 3].map((i) => (
+                                                            <div key={i} className="w-7 h-7 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary animate-in fade-in zoom-in" style={{ animationDelay: `${i * 100}ms` }}>
+                                                                <Users className="w-3 h-3" />
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                     <Button
-                                                        type="button"
-                                                        variant="ghost"
                                                         size="sm"
-                                                        onClick={() => handleRemoveStaff(staff.id)}
+                                                        variant="outline"
+                                                        onClick={() => handleEditClick(cls)}
+                                                        className="h-8 text-[11px] font-bold hover:bg-primary hover:text-white transition-all shadow-sm border-primary/20 rounded-lg"
                                                     >
-                                                        <X className="w-4 h-4 text-destructive" />
+                                                        Details
                                                     </Button>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Preview Section - Only show if we have data */}
-                    {(selectedClassTeacher || subjectStaff.length > 0) && selectedClass && selectedSection && (
-                        <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-                            <p className="text-sm font-medium mb-2 text-blue-900">Current Session Preview:</p>
-                            <div className="flex flex-col gap-2">
-                                {selectedClassTeacher && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-semibold uppercase text-muted-foreground w-24">Class Teacher:</span>
-                                        <Badge variant="outline" className="bg-white">
-                                            {allStaffMembers.find(s => s.id === selectedClassTeacher)?.name}
-                                        </Badge>
-                                    </div>
-                                )}
-                                {selectedSubject && subjectStaff.length > 0 && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-semibold uppercase text-muted-foreground w-24">{allSubjects.find(s => s.id === selectedSubject)?.name}:</span>
-                                        <div className="flex flex-wrap gap-1">
-                                            {subjectStaff.map(s => (
-                                                <Badge key={s.id} variant="success">
-                                                    {s.staffName}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-                        </div>
+                        ))
                     )}
-
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end gap-3 mt-6 pt-6 border-t">
-                    <Button type="button" variant="outline" onClick={() => window.history.back()}>
-                        Cancel
-                    </Button>
-                    <Button type="button" onClick={handleSubmit}>
-                        Save All Assignments
-                    </Button>
                 </div>
             </div>
-        </InstitutionLayout >
+
+            {/* Assignment Dialog */}
+            <AssignmentDialog
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                classSection={selectedClassForEdit}
+                allStaffMembers={allStaffMembers}
+                allSubjects={allSubjects}
+                getAssignedStaff={getAssignedStaff}
+                assignStaff={assignStaff}
+                getClassTeacher={getClassTeacher}
+                assignClassTeacher={assignClassTeacher}
+                classTeachers={classTeachers}
+            />
+        </InstitutionLayout>
     );
 }
