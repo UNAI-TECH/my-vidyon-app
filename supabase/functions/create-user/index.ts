@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
             full_name: full_name,
             role: finalRole,
             institution_id: institution_id,
+            is_active: true, // Ensure new users are active by default
             updated_at: new Date().toISOString()
         };
 
@@ -121,7 +122,8 @@ Deno.serve(async (req) => {
                     phone: phone, // Student's personal phone
                     gender: gender,
                     address: address,
-                    dob: date_of_birth // Map date_of_birth (frontend) to dob (db)
+                    dob: date_of_birth, // Map date_of_birth (frontend) to dob (db)
+                    is_active: true // Ensure new students are active by default
                 });
             if (studentError) {
                 console.error("Error creating student record:", studentError);
@@ -135,7 +137,8 @@ Deno.serve(async (req) => {
                     name: full_name,
                     email: email,
                     institution_id: institution_id,
-                    phone: phone
+                    phone: phone,
+                    is_active: true // Ensure new parents are active by default
                 }, { onConflict: 'email' })
                 .select()
                 .single();

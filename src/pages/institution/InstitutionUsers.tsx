@@ -137,26 +137,51 @@ export function InstitutionUsers() {
 
     // --- HANDLERS ---
 
-    const handleDeleteUser = async (id: string, type: 'student' | 'staff' | 'parent') => {
-        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    const handleToggleUserStatus = async (id: string, type: 'student' | 'staff' | 'parent', currentStatus: boolean) => {
+        const action = currentStatus ? 'disable' : 'enable';
+        const confirmMessage = currentStatus
+            ? 'Are you sure you want to disable this user? They will no longer be able to log in, but their data will be preserved.'
+            : 'Are you sure you want to enable this user? They will be able to log in again.';
 
-        const table = type === 'student' ? 'students' : type === 'staff' ? 'profiles' : 'parents';
+        if (!confirm(confirmMessage)) return;
+
+        const loadingToast = toast.loading(`${action === 'disable' ? 'Disabling' : 'Enabling'} ${type}...`);
 
         try {
-            const { error } = await supabase.from(table).delete().eq('id', id);
-            if (error) throw error;
+            // Call the appropriate database function
+            const functionName = action === 'disable' ? 'disable_user_access' : 'enable_user_access';
+            const { data, error } = await supabase.rpc(functionName, {
+                user_id: id,
+                user_type: type
+            });
 
-            toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`);
+            if (error) {
+                throw new Error(error.message);
+            }
 
-            // Invalidate queries
+            // Check if the function returned an error
+            if (data && !data.success) {
+                throw new Error(data.error || `Failed to ${action} user`);
+            }
+
+            toast.dismiss(loadingToast);
+            toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} ${action}d successfully.`);
+
+            // Invalidate queries to refresh the UI
             if (type === 'student') queryClient.invalidateQueries({ queryKey: ['institution-students'] });
             if (type === 'staff') queryClient.invalidateQueries({ queryKey: ['institution-staff'] });
             if (type === 'parent') queryClient.invalidateQueries({ queryKey: ['institution-parents'] });
 
         } catch (err: any) {
-            console.error("Delete error:", err);
-            toast.error("Failed to delete user: " + err.message);
+            console.error(`${action} error:`, err);
+            toast.dismiss(loadingToast);
+            toast.error(`Failed to ${action} user: ` + err.message);
         }
+    };
+
+    // Keep the old function for backward compatibility (can be removed later)
+    const handleDeleteUser = async (id: string, type: 'student' | 'staff' | 'parent') => {
+        await handleToggleUserStatus(id, type, true); // Always disable
     };
 
     const handleBulkUpload = async () => {
@@ -308,14 +333,26 @@ export function InstitutionUsers() {
                                                             <span className="text-xs text-muted-foreground">{student.parent_contact || student.parent_phone}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
+                                                    <td className="p-4">
+                                                        <Badge className={student.is_active !== false ? "bg-green-100 text-green-700 hover:bg-green-100/80 border-0" : "bg-red-100 text-red-700 hover:bg-red-100/80 border-0"}>
+                                                            {student.is_active !== false ? 'Active' : 'Disabled'}
+                                                        </Badge>
+                                                    </td>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-2">
                                                             <Button variant="ghost" size="sm" onClick={() => navigate(`/institution/student/${student.id}`)}>
                                                                 View Details
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" onClick={() => handleDeleteUser(student.id, 'student')}>
-                                                                <Trash2 className="w-4 h-4" />
+                                                            <Button
+                                                                variant={student.is_active !== false ? "ghost" : "default"}
+                                                                size="sm"
+                                                                className={student.is_active !== false
+                                                                    ? "text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                                                    : "bg-green-600 hover:bg-green-700 text-white"
+                                                                }
+                                                                onClick={() => handleToggleUserStatus(student.id, 'student', student.is_active !== false)}
+                                                            >
+                                                                {student.is_active !== false ? 'Disable' : 'Enable'}
                                                             </Button>
                                                         </div>
                                                     </td>
@@ -364,15 +401,22 @@ export function InstitutionUsers() {
                                                     <td className="p-4">{staff.phone || 'N/A'}</td>
                                                     <td className="p-4">{staff.date_of_birth ? new Date(staff.date_of_birth).toLocaleDateString() : 'N/A'}</td>
                                                     <td className="p-4"><Badge variant="outline" className="capitalize">{staff.role}</Badge></td>
-                                                    <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
+                                                    <td className="p-4">
+                                                        <Badge className={staff.is_active !== false ? "bg-green-100 text-green-700 hover:bg-green-100/80 border-0" : "bg-red-100 text-red-700 hover:bg-red-100/80 border-0"}>
+                                                            {staff.is_active !== false ? 'Active' : 'Disabled'}
+                                                        </Badge>
+                                                    </td>
                                                     <td className="p-4">
                                                         <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                                                            onClick={() => handleDeleteUser(staff.id, 'staff')}
+                                                            variant={staff.is_active !== false ? "ghost" : "default"}
+                                                            size="sm"
+                                                            className={staff.is_active !== false
+                                                                ? "text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                                                : "bg-green-600 hover:bg-green-700 text-white"
+                                                            }
+                                                            onClick={() => handleToggleUserStatus(staff.id, 'staff', staff.is_active !== false)}
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            {staff.is_active !== false ? 'Disable' : 'Enable'}
                                                         </Button>
                                                     </td>
                                                 </tr>
@@ -452,13 +496,14 @@ export function InstitutionUsers() {
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Email</th>
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Phone</th>
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="[&_tr:last-child]:border-0">
                                         {isStaffLoading ? (
-                                            <tr><td colSpan={4} className="p-4 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                                            <tr><td colSpan={5} className="p-4 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
                                         ) : filteredAccountants.length === 0 ? (
-                                            <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No accountants found.</td></tr>
+                                            <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No accountants found.</td></tr>
                                         ) : (
                                             filteredAccountants.map((acc: any) => (
                                                 <tr key={acc.id} className="border-b transition-colors hover:bg-muted/50">
@@ -466,6 +511,16 @@ export function InstitutionUsers() {
                                                     <td className="p-4">{acc.email}</td>
                                                     <td className="p-4">{acc.phone || 'N/A'}</td>
                                                     <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
+                                                    <td className="p-4">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                                            onClick={() => handleDeleteUser(acc.id, 'staff')}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}
@@ -492,13 +547,14 @@ export function InstitutionUsers() {
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Email</th>
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Phone</th>
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="[&_tr:last-child]:border-0">
                                         {isStaffLoading ? (
-                                            <tr><td colSpan={4} className="p-4 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                                            <tr><td colSpan={5} className="p-4 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
                                         ) : filteredCanteenManagers.length === 0 ? (
-                                            <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No canteen managers found.</td></tr>
+                                            <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No canteen managers found.</td></tr>
                                         ) : (
                                             filteredCanteenManagers.map((cm: any) => (
                                                 <tr key={cm.id} className="border-b transition-colors hover:bg-muted/50">
@@ -506,6 +562,16 @@ export function InstitutionUsers() {
                                                     <td className="p-4">{cm.email}</td>
                                                     <td className="p-4">{cm.phone || 'N/A'}</td>
                                                     <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
+                                                    <td className="p-4">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                                            onClick={() => handleDeleteUser(cm.id, 'staff')}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}

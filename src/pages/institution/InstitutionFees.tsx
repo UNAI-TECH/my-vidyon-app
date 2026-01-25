@@ -132,23 +132,40 @@ export function InstitutionFees() {
                 .from('students')
                 .select('*')
                 .eq('institution_id', user.institutionId)
-                .eq('class_id', classObj.id);
+                .eq('class_name', selectedClass)
+                .eq('section', selectedSection);
 
             if (stuError) throw stuError;
 
-            // 3. Fetch Student Fees
-            const { data: feesData, error: feesError } = await supabase
-                .from('student_fees')
-                .select(`
-                    *,
-                    fee_structure:fee_structure_id (name)
-                `)
-                .eq('institution_id', user.institutionId)
-                .in('student_id', studentsData.map(s => s.id));
+            // 3. Fetch Fee Structures for this institution
+            const { data: classFeeStructures, error: feeStructError } = await supabase
+                .from('fee_structures')
+                .select('*')
+                .eq('institution_id', user.institutionId);
 
-            if (feesError) throw feesError;
+            if (feeStructError) {
+                console.error("Fee structure error:", feeStructError);
+                // Don't throw, just log and continue with empty fee structures
+            }
 
-            // Merge Data
+            // 4. Fetch Student Fees (if any exist)
+            let feesData: any[] = [];
+            if (studentsData && studentsData.length > 0) {
+                const { data: fees, error: feesError } = await supabase
+                    .from('student_fees')
+                    .select('*')
+                    .eq('institution_id', user.institutionId)
+                    .in('student_id', studentsData.map(s => s.id));
+
+                if (feesError) {
+                    console.error("Fee fetch error:", feesError);
+                    // Don't throw, just continue with empty fees
+                } else {
+                    feesData = fees || [];
+                }
+            }
+
+            // Merge Data - Show ALL students even if they have no fees
             const merged = studentsData.map(s => {
                 const sFees = feesData?.filter(f => f.student_id === s.id) || [];
 
@@ -157,19 +174,19 @@ export function InstitutionFees() {
                 const totalPaid = sFees.reduce((sum, f) => sum + (Number(f.amount_paid) || 0), 0);
                 const pending = totalDue - totalPaid;
 
-                let status = 'Paid';
-                if (pending > 0) status = 'Pending'; // Simplified
+                let status = sFees.length === 0 ? 'No Fees' : 'Paid';
+                if (pending > 0) status = 'Pending';
                 if (sFees.some(f => f.status === 'overdue')) status = 'Due';
 
                 return {
                     id: s.id,
-                    name: s.first_name + ' ' + s.last_name,
-                    rollNo: s.roll_number || 'N/A',
-                    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${s.first_name}`,
-                    dob: s.dob,
+                    name: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown',
+                    rollNo: s.roll_number || s.register_number || 'N/A',
+                    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${s.name || s.first_name || 'Student'}`,
+                    dob: s.dob || s.date_of_birth,
                     bloodGroup: s.blood_group,
                     parentName: s.parent_name || 'Guardian',
-                    contact: s.emergency_contact,
+                    contact: s.emergency_contact || s.parent_phone,
                     address: s.address,
                     fees: {
                         total: totalDue,
@@ -177,10 +194,12 @@ export function InstitutionFees() {
                         pending: pending,
                         status: status,
                         structure: sFees.map(f => ({
-                            category: f.fee_structure?.name || 'Fee',
+                            category: 'Fee',
                             amount: f.amount_due,
-                            paid: f.amount_paid
-                        }))
+                            paid: f.amount_paid,
+                            dueDate: f.due_date
+                        })),
+                        classFeeStructures: classFeeStructures || []
                     }
                 };
             });
@@ -199,6 +218,35 @@ export function InstitutionFees() {
             fetchStudents();
         }
     }, [viewMode, selectedClass, selectedSection]);
+
+    // Real-time subscription for fee updates
+    useEffect(() => {
+        if (viewMode !== 'students' || !user?.institutionId) return;
+
+        // Subscribe to student_fees changes
+        const subscription = supabase
+            .channel('student_fees_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'student_fees',
+                    filter: `institution_id=eq.${user.institutionId}`
+                },
+                (payload) => {
+                    console.log('📡 Fee update received:', payload);
+                    // Refresh the student data when fees are updated
+                    fetchStudents();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [viewMode, user?.institutionId, selectedClass, selectedSection]);
+
 
 
     // Handlers
@@ -452,6 +500,42 @@ export function InstitutionFees() {
                                 </Select>
                             </div>
                         </div>
+
+                        {/* Fee Structures for this Class */}
+                        {students.length > 0 && students[0]?.fees?.classFeeStructures && students[0].fees.classFeeStructures.length > 0 && (
+                            <div className="px-6 pt-4 pb-2">
+                                <div className="bg-muted/30 border border-primary/20 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <FileText className="w-4 h-4 text-primary" />
+                                        <h3 className="font-semibold text-sm">Fee Structures for {selectedClass} - Section {selectedSection}</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {students[0].fees.classFeeStructures.map((feeStructure: any) => (
+                                            <div key={feeStructure.id} className="bg-card border rounded-lg p-3 hover:border-primary/50 transition-colors">
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <div className="flex-1">
+                                                        <h4 className="font-medium text-sm">{feeStructure.name}</h4>
+                                                        {feeStructure.due_date && (
+                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                Due: {new Date(feeStructure.due_date).toLocaleDateString()}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <Badge variant="outline" className="ml-2">
+                                                        ₹{Number(feeStructure.amount).toLocaleString()}
+                                                    </Badge>
+                                                </div>
+                                                {feeStructure.class_id ? (
+                                                    <Badge variant="default" className="text-[10px] h-5">Class Specific</Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[10px] h-5">General</Badge>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <ScrollArea className="flex-1 p-6">
                             {loading ? <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary" /></div> :

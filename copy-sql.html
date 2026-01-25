@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete User Function - SQL</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .steps {
+            background: #eff6ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2563eb;
+        }
+        .steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .steps li {
+            margin: 8px 0;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .copy-btn:hover {
+            background: #2563eb;
+        }
+        .copy-btn:active {
+            background: #1d4ed8;
+        }
+        .success {
+            color: #16a34a;
+            font-weight: bold;
+        }
+        .warning {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #f59e0b;
+            margin: 20px 0;
+        }
+        a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Delete User Function - SQL Migration</h1>
+        <p>This SQL creates a database function that deletes users completely (database + authentication).</p>
+        
+        <div class="steps">
+            <h3>📋 Quick Steps:</h3>
+            <ol>
+                <li>Click the <strong>"Copy SQL"</strong> button below</li>
+                <li>Go to <a href="https://supabase.com/dashboard" target="_blank">Supabase Dashboard</a></li>
+                <li>Select your project: <code>ccyqzcaghwaggtmkmigi</code></li>
+                <li>Click <strong>SQL Editor</strong> in the left sidebar</li>
+                <li>Click <strong>New Query</strong></li>
+                <li>Paste the SQL and click <strong>Run</strong></li>
+                <li class="success">✅ Done! No CORS errors anymore!</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This function allows deleting users from authentication. Only run this in your actual project database.
+        </div>
+
+        <h3>SQL Code:</h3>
+        <pre id="sqlCode">-- Migration: Add delete_user_completely function
+-- This function deletes a user from both database and auth
+-- Date: 2026-01-25
+
+CREATE OR REPLACE FUNCTION public.delete_user_completely(
+    user_id UUID,
+    user_type TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    auth_user_id UUID;
+    result JSON;
+BEGIN
+    -- Verify the caller has permission (must be institution admin or super admin)
+    IF NOT EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid()
+        AND role IN ('institution', 'admin', 'super_admin')
+    ) THEN
+        RAISE EXCEPTION 'Insufficient permissions. Only institution admins can delete users.';
+    END IF;
+
+    -- Get the auth user ID based on user type
+    IF user_type = 'student' THEN
+        SELECT id INTO auth_user_id
+        FROM public.students
+        WHERE id = user_id;
+        
+        IF auth_user_id IS NULL THEN
+            RAISE EXCEPTION 'Student not found';
+        END IF;
+        
+        DELETE FROM public.students WHERE id = user_id;
+        
+    ELSIF user_type = 'parent' THEN
+        SELECT profile_id INTO auth_user_id
+        FROM public.parents
+        WHERE id = user_id;
+        
+        IF auth_user_id IS NULL THEN
+            RAISE EXCEPTION 'Parent not found';
+        END IF;
+        
+        DELETE FROM public.parents WHERE id = user_id;
+        DELETE FROM public.profiles WHERE id = auth_user_id;
+        
+    ELSIF user_type = 'staff' THEN
+        auth_user_id := user_id;
+        
+        IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = user_id) THEN
+            RAISE EXCEPTION 'Staff member not found';
+        END IF;
+        
+        DELETE FROM public.staff_details WHERE profile_id = user_id;
+        DELETE FROM public.accountants WHERE profile_id = user_id;
+        DELETE FROM public.profiles WHERE id = user_id;
+        
+    ELSE
+        RAISE EXCEPTION 'Invalid user_type. Must be student, parent, or staff.';
+    END IF;
+
+    -- Delete from auth.users (this prevents login)
+    DELETE FROM auth.users WHERE id = auth_user_id;
+
+    result := json_build_object(
+        'success', true,
+        'message', user_type || ' deleted successfully',
+        'deleted_user_id', user_id,
+        'deleted_auth_user_id', auth_user_id
+    );
+
+    RETURN result;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        result := json_build_object(
+            'success', false,
+            'error', SQLERRM
+        );
+        RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_user_completely(UUID, TEXT) TO authenticated;
+
+COMMENT ON FUNCTION public.delete_user_completely IS 'Deletes a user from both database tables and auth.users, preventing them from logging in. Only institution admins can execute this.';<button class="copy-btn" onclick="copySQL()">📋 Copy SQL</button></pre>
+
+        <div id="copyMessage" style="display:none; color: #16a34a; font-weight: bold; margin-top: 10px;">
+            ✅ SQL copied to clipboard! Now paste it in Supabase SQL Editor.
+        </div>
+
+        <div class="steps" style="margin-top: 30px; background: #f0fdf4; border-left-color: #16a34a;">
+            <h3>✅ After Running the SQL:</h3>
+            <ol>
+                <li>Go to your Institution Portal</li>
+                <li>Navigate to Users page</li>
+                <li>Try deleting a test user</li>
+                <li class="success">No more CORS errors!</li>
+                <li class="success">Deleted users cannot log in!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function copySQL() {
+            const sqlCode = document.getElementById('sqlCode').textContent;
+            // Remove the copy button text from the copied content
+            const cleanSQL = sqlCode.replace('📋 Copy SQL', '').trim();
+            
+            navigator.clipboard.writeText(cleanSQL).then(() => {
+                const message = document.getElementById('copyMessage');
+                message.style.display = 'block';
+                
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#16a34a';
+                
+                setTimeout(() => {
+                    btn.textContent = '📋 Copy SQL';
+                    btn.style.background = '#3b82f6';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
