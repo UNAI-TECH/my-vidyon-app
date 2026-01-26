@@ -53,8 +53,7 @@ export function FacultyLayout({ children }: { children: ReactNode }) {
 
     { label: t.nav.students, href: '/faculty/students', icon: Users },
     { label: 'Academic Calendar', href: '/faculty/calendar', icon: Calendar },
-    // Only show Timetable to class teachers
-    ...(isClassTeacher ? [{ label: 'Timetable', href: '/faculty/timetable', icon: BarChart3 }] : []),
+    { label: 'Timetable', href: '/faculty/timetable', icon: BarChart3 },
     { label: t.nav.announcements, href: '/faculty/announcements', icon: Megaphone },
     { label: t.nav.notifications, href: '/faculty/notifications', icon: Megaphone },
     { label: 'Upload Certificate', href: '/faculty/upload-certificate', icon: FileText },
