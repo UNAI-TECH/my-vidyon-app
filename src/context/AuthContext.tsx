@@ -44,8 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Parallelize queries for efficiency across entity tables
         const [instRes, studentRes, parentRes] = await Promise.all([
           supabase.from('institutions').select('institution_id').eq('admin_email', email).maybeSingle(),
-          supabase.from('students').select('institution_id').eq('email', email).maybeSingle(),
-          supabase.from('parents').select('institution_id').eq('email', email).maybeSingle()
+          supabase.from('students').select('institution_id, is_active').eq('email', email).maybeSingle(),
+          supabase.from('parents').select('institution_id, is_active').eq('email', email).maybeSingle()
         ]);
 
         // 2. Check if user is an Institution Admin
@@ -56,12 +56,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // 3. Check if user is a Student (Search by email)
         if (!detectedRole && studentRes.data) {
+          // Check if student is active
+          if (studentRes.data.is_active === false) {
+            console.error('🚫 [AUTH] BLOCKING LOGIN - Student account is disabled');
+            throw new Error('USER_DISABLED');
+          }
           detectedRole = 'student';
           institutionId = studentRes.data.institution_id;
         }
 
         // 4. Check if user is a Parent (Search by email)
         if (!detectedRole && parentRes.data) {
+          // Check if parent is active
+          if (parentRes.data.is_active === false) {
+            console.error('🚫 [AUTH] BLOCKING LOGIN - Parent account is disabled');
+            throw new Error('USER_DISABLED');
+          }
           detectedRole = 'parent';
           institutionId = parentRes.data.institution_id;
         }
@@ -75,6 +85,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .maybeSingle();
 
           if (staffData) {
+            // Check if staff profile is active
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('is_active')
+              .eq('id', userId)
+              .maybeSingle();
+
+            if (profileData && profileData.is_active === false) {
+              console.error('🚫 [AUTH] BLOCKING LOGIN - Staff account is disabled');
+              throw new Error('USER_DISABLED');
+            }
+
             detectedRole = staffData.role as UserRole;
             institutionId = staffData.institution_id;
           }
@@ -164,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (err: any) {
       console.error('Profile fetch transition error:', err);
-      if (err.message === 'INSTITUTION_INACTIVE') {
+      if (err.message === 'INSTITUTION_INACTIVE' || err.message === 'USER_DISABLED') {
         throw err; // Re-throw to handle in login
       }
       return null;
@@ -186,12 +208,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
 
         if (session) {
-          const user = await fetchUserProfile(session.user.id, session.user.email!);
-          setState({
-            user,
-            isAuthenticated: !!user,
-            isLoading: false,
-          });
+          console.log('🔄 [AUTH] Session found, verifying user profile and institution status...');
+
+          try {
+            const user = await fetchUserProfile(session.user.id, session.user.email!);
+
+            if (user) {
+              setState({
+                user,
+                isAuthenticated: true,
+                isLoading: false,
+              });
+            } else {
+              // Profile not found, sign out
+              await supabase.auth.signOut();
+              setState(prev => ({ ...prev, isLoading: false }));
+            }
+          } catch (error: any) {
+            // If institution is inactive or user is disabled, sign out the user
+            if (error.message === 'INSTITUTION_INACTIVE' || error.message === 'INSTITUTION_DELETED' || error.message === 'USER_DISABLED') {
+              console.error('🚫 [AUTH] Institution is inactive/deleted or user is disabled - signing out user');
+              await supabase.auth.signOut();
+              setState({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+              });
+              toast.error('Access Denied', {
+                description: error.message === 'USER_DISABLED'
+                  ? 'Your account has been disabled. Please contact your administrator.'
+                  : error.message === 'INSTITUTION_INACTIVE'
+                    ? 'Your institution has been deactivated. Please contact your administrator.'
+                    : 'Your institution has been deleted. Please contact support.',
+              });
+            } else {
+              throw error;
+            }
+          }
         } else {
           setState(prev => ({ ...prev, isLoading: false }));
         }
@@ -222,7 +275,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Periodic institution status check for logged-in users
+    let statusCheckInterval: NodeJS.Timeout | null = null;
+
+    const checkInstitutionStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      try {
+        const user = await fetchUserProfile(session.user.id, session.user.email!);
+        // If fetchUserProfile throws INSTITUTION_INACTIVE, it will be caught below
+      } catch (error: any) {
+        if (error.message === 'INSTITUTION_INACTIVE' || error.message === 'INSTITUTION_DELETED' || error.message === 'USER_DISABLED') {
+          console.error('🚫 [AUTH] Institution status changed or user disabled - logging out user');
+          await supabase.auth.signOut();
+          setState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+          toast.error('Session Expired', {
+            description: error.message === 'USER_DISABLED'
+              ? 'Your account has been disabled. You have been logged out.'
+              : 'Your institution has been deactivated. You have been logged out.',
+          });
+        }
+      }
+    };
+
+    // Check institution status every 30 seconds for logged-in users
+    statusCheckInterval = setInterval(checkInstitutionStatus, 30000);
+
+    return () => {
+      subscription.unsubscribe();
+      if (statusCheckInterval) clearInterval(statusCheckInterval);
+    };
   }, [fetchUserProfile]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
@@ -337,7 +424,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState(prev => ({ ...prev, isLoading: false }));
 
       // Handle specific error cases
-      if (error.message === 'INSTITUTION_INACTIVE') {
+      if (error.message === 'USER_DISABLED') {
+        toast.error('Access Denied', {
+          description: 'Your account has been disabled. Please contact your administrator for access.',
+        });
+      } else if (error.message === 'INSTITUTION_INACTIVE') {
         toast.error('Access Denied', {
           description: 'Your institution is currently inactive. Please contact your administrator for access.',
         });
@@ -345,13 +436,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast.error('Access Denied', {
           description: 'Your institution has been deleted. Please contact support for assistance.',
         });
+      } else if (error.message?.includes('Database error') || error.message?.includes('banned')) {
+        // Handle database errors or banned users
+        toast.error('Access Denied', {
+          description: 'You cannot access this portal. Please contact your administrator.',
+        });
       } else {
         const errorMessage = error.message || "An error occurred during login";
         toast.error(errorMessage);
       }
 
-      // Sign out if institution is inactive or deleted
-      if (error.message === 'INSTITUTION_INACTIVE' || error.message === 'INSTITUTION_DELETED') {
+      // Sign out if institution is inactive, deleted, or user is disabled
+      if (error.message === 'INSTITUTION_INACTIVE' || error.message === 'INSTITUTION_DELETED' || error.message === 'USER_DISABLED' || error.message?.includes('banned')) {
         await supabase.auth.signOut();
       }
 

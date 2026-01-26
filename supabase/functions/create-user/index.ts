@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
             full_name: full_name,
             role: finalRole,
             institution_id: institution_id,
+            is_active: true, // Ensure new users are active by default
             updated_at: new Date().toISOString()
         };
 
@@ -138,15 +139,8 @@ Deno.serve(async (req) => {
                     phone: phone,
                     gender: gender,
                     address: address,
-                    dob: date_of_birth,
-                    blood_group: blood_group,
-                    city: city,
-                    zip_code: zip_code,
-                    parent_relation: parent_relation,
-                    academic_year: academic_year || '2025-26',
-                    parent_contact: parent_contact || parent_phone
-                }, { onConflict: 'profile_id' });
-
+                    dob: date_of_birth // Map date_of_birth (frontend) to dob (db)
+                });
             if (studentError) {
                 console.error("Student sync error:", studentError);
                 throw new Error(`Student sync failed: ${studentError.message}`);
@@ -159,10 +153,8 @@ Deno.serve(async (req) => {
                 .upsert({
                     profile_id: userId,
                     institution_id: institution_id,
-                    name: full_name,
-                    email: email.toLowerCase(),
                     phone: phone
-                }, { onConflict: 'profile_id' })
+                }, { onConflict: 'email' })
                 .select()
                 .single();
 

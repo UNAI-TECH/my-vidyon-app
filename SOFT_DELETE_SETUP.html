@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soft Delete - User Disable Function</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .highlight {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #667eea;
+        }
+
+        .highlight h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+
+        .steps {
+            background: #eff6ff;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #3b82f6;
+        }
+
+        .steps ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+
+        .steps li {
+            margin: 12px 0;
+            line-height: 1.6;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 25px;
+            border-radius: 10px;
+            overflow-x: auto;
+            position: relative;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .copy-btn:active {
+            background: #1d4ed8;
+            transform: translateY(0);
+        }
+
+        .success {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .warning {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #f59e0b;
+            margin: 20px 0;
+        }
+
+        .warning strong {
+            color: #d97706;
+        }
+
+        a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .feature-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .feature h4 {
+            color: #667eea;
+            margin-top: 0;
+        }
+
+        .checkmark {
+            color: #16a34a;
+            font-size: 20px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🛡️ Soft Delete - User Disable Function</h1>
+        <p class="subtitle">Disable users without deleting data - Safe & Reversible!</p>
+
+        <div class="highlight">
+            <h3>✨ What This Does:</h3>
+            <div class="feature-box">
+                <div class="feature">
+                    <h4><span class="checkmark">✅</span>Disables Login</h4>
+                    <p>Users cannot access their portal</p>
+                </div>
+                <div class="feature">
+                    <h4><span class="checkmark">✅</span>Preserves Data</h4>
+                    <p>All information stays in database</p>
+                </div>
+                <div class="feature">
+                    <h4><span class="checkmark">✅</span>Reversible</h4>
+                    <p>Can re-enable users anytime</p>
+                </div>
+                <div class="feature">
+                    <h4><span class="checkmark">✅</span>Safe</h4>
+                    <p>No data loss, no mistakes</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="steps">
+            <h3>📋 Quick Setup (3 Steps):</h3>
+            <ol>
+                <li><strong>Copy the SQL</strong> - Click the "Copy SQL" button below</li>
+                <li><strong>Open Supabase Dashboard</strong> - Go to <a href="https://supabase.com/dashboard"
+                        target="_blank">Supabase Dashboard</a> → SQL Editor</li>
+                <li><strong>Run the SQL</strong> - Paste and click "Run" (Ctrl+Enter)</li>
+            </ol>
+            <p class="success">✅ That's it! The feature will work immediately!</p>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This SQL creates database functions and adds columns. It's safe to run and
+            won't delete any existing data.
+        </div>
+
+        <h3>SQL Migration Code:</h3>
+        <pre
+            id="sqlCode">-- Migration: Add soft delete functionality for users
+-- Adds is_active column and disable/enable functions
+-- Date: 2026-01-25
+
+-- Add is_active column to students table
+ALTER TABLE public.students 
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Add is_active column to parents table
+ALTER TABLE public.parents 
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Add is_active column to profiles table (for staff)
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_students_is_active ON public.students(is_active);
+CREATE INDEX IF NOT EXISTS idx_parents_is_active ON public.parents(is_active);
+CREATE INDEX IF NOT EXISTS idx_profiles_is_active ON public.profiles(is_active);
+
+-- Function to disable user (soft delete)
+CREATE OR REPLACE FUNCTION public.disable_user_access(
+    user_id UUID,
+    user_type TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    auth_user_id UUID;
+    result JSON;
+BEGIN
+    -- Check permissions
+    IF NOT EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid()
+        AND role IN ('institution', 'admin')
+    ) THEN
+        RAISE EXCEPTION 'Insufficient permissions';
+    END IF;
+
+    -- Disable based on type
+    IF user_type = 'student' THEN
+        SELECT id INTO auth_user_id FROM public.students WHERE id = user_id;
+        IF auth_user_id IS NULL THEN RAISE EXCEPTION 'Student not found'; END IF;
+        UPDATE public.students SET is_active = false WHERE id = user_id;
+        
+    ELSIF user_type = 'parent' THEN
+        SELECT profile_id INTO auth_user_id FROM public.parents WHERE id = user_id;
+        IF auth_user_id IS NULL THEN RAISE EXCEPTION 'Parent not found'; END IF;
+        UPDATE public.parents SET is_active = false WHERE id = user_id;
+        UPDATE public.profiles SET is_active = false WHERE id = auth_user_id;
+        
+    ELSIF user_type = 'staff' THEN
+        auth_user_id := user_id;
+        IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = user_id) THEN
+            RAISE EXCEPTION 'Staff not found';
+        END IF;
+        UPDATE public.profiles SET is_active = false WHERE id = user_id;
+        
+    ELSE
+        RAISE EXCEPTION 'Invalid user_type';
+    END IF;
+
+    -- Ban auth user (prevents login)
+    UPDATE auth.users 
+    SET banned_until = 'infinity'::timestamptz, updated_at = now()
+    WHERE id = auth_user_id;
+
+    result := json_build_object(
+        'success', true,
+        'message', user_type || ' access disabled successfully'
+    );
+    RETURN result;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        result := json_build_object('success', false, 'error', SQLERRM);
+        RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.disable_user_access(UUID, TEXT) TO authenticated;
+
+-- Function to re-enable user
+CREATE OR REPLACE FUNCTION public.enable_user_access(
+    user_id UUID,
+    user_type TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    auth_user_id UUID;
+    result JSON;
+BEGIN
+    -- Check permissions
+    IF NOT EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid()
+        AND role IN ('institution', 'admin')
+    ) THEN
+        RAISE EXCEPTION 'Insufficient permissions';
+    END IF;
+
+    -- Enable based on type
+    IF user_type = 'student' THEN
+        SELECT id INTO auth_user_id FROM public.students WHERE id = user_id;
+        IF auth_user_id IS NULL THEN RAISE EXCEPTION 'Student not found'; END IF;
+        UPDATE public.students SET is_active = true WHERE id = user_id;
+        
+    ELSIF user_type = 'parent' THEN
+        SELECT profile_id INTO auth_user_id FROM public.parents WHERE id = user_id;
+        IF auth_user_id IS NULL THEN RAISE EXCEPTION 'Parent not found'; END IF;
+        UPDATE public.parents SET is_active = true WHERE id = user_id;
+        UPDATE public.profiles SET is_active = true WHERE id = auth_user_id;
+        
+    ELSIF user_type = 'staff' THEN
+        auth_user_id := user_id;
+        IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = user_id) THEN
+            RAISE EXCEPTION 'Staff not found';
+        END IF;
+        UPDATE public.profiles SET is_active = true WHERE id = user_id;
+        
+    ELSE
+        RAISE EXCEPTION 'Invalid user_type';
+    END IF;
+
+    -- Unban auth user
+    UPDATE auth.users 
+    SET banned_until = NULL, updated_at = now()
+    WHERE id = auth_user_id;
+
+    result := json_build_object(
+        'success', true,
+        'message', user_type || ' access enabled successfully'
+    );
+    RETURN result;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        result := json_build_object('success', false, 'error', SQLERRM);
+        RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.enable_user_access(UUID, TEXT) TO authenticated;<button class="copy-btn" onclick="copySQL()">📋 Copy SQL</button></pre>
+
+        <div id="copyMessage"
+            style="display:none; color: #16a34a; font-weight: bold; margin-top: 15px; font-size: 18px;">
+            ✅ SQL copied to clipboard! Now paste it in Supabase SQL Editor and run it.
+        </div>
+
+        <div class="steps" style="margin-top: 40px; background: #f0fdf4; border-left-color: #16a34a;">
+            <h3>✅ After Running the SQL:</h3>
+            <ol>
+                <li>Go to <strong>Institution Portal</strong> → <strong>Users</strong></li>
+                <li>Click the delete button on any user</li>
+                <li>Confirm the action</li>
+                <li class="success">User is disabled and cannot log in!</li>
+                <li class="success">All their data is preserved in the database!</li>
+                <li class="success">You can re-enable them later if needed!</li>
+            </ol>
+        </div>
+
+        <div class="highlight" style="background: #fef3c7; border-left-color: #f59e0b;">
+            <h3>🔄 How to Re-Enable a User:</h3>
+            <p>To re-enable a disabled user, you can run this SQL in Supabase SQL Editor:</p>
+            <pre
+                style="background: #1e293b; padding: 15px; border-radius: 6px; margin-top: 10px;">SELECT enable_user_access('user-id-here'::uuid, 'student'); -- or 'parent' or 'staff'</pre>
+            <p style="margin-top: 10px;"><em>Replace 'user-id-here' with the actual user ID</em></p>
+        </div>
+    </div>
+
+    <script>
+        function copySQL() {
+            const sqlCode = document.getElementById('sqlCode').textContent;
+            const cleanSQL = sqlCode.replace('📋 Copy SQL', '').trim();
+
+            navigator.clipboard.writeText(cleanSQL).then(() => {
+                const message = document.getElementById('copyMessage');
+                message.style.display = 'block';
+
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#16a34a';
+
+                setTimeout(() => {
+                    btn.textContent = '📋 Copy SQL';
+                    btn.style.background = '#3b82f6';
+                }, 3000);
+
+                // Scroll to message
+                message.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        }
+    </script>
+</body>
+
+</html>
