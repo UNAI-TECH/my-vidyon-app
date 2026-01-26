@@ -68,7 +68,7 @@ const VideoIntro = ({ onComplete, showOnce = false }: VideoIntroProps) => {
             {/* Video Element */}
             <video
                 ref={videoRef}
-                className={`w-full h-full object-cover md:object-contain transition-opacity duration-500 ${isVideoLoaded ? 'opacity-100' : 'opacity-0'
+                className={`w-full h-full object-contain md:object-cover transition-opacity duration-500 ${isVideoLoaded ? 'opacity-100' : 'opacity-0'
                     }`}
                 onEnded={handleVideoEnd}
                 onLoadedData={handleVideoLoaded}
