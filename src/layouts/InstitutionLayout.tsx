@@ -47,7 +47,8 @@ export function InstitutionLayout({ children }: { children: ReactNode }) {
   // Accountant Role Items: Dashboard, Fees, Analytics
   const accountantItems = [
     { label: t.nav.dashboard, href: '/accountant/dashboard', icon: LayoutDashboard },
-    { label: t.nav.feeStructure, href: '/accountant/fees', icon: DollarSign },
+    { label: "Fee Management", href: '/accountant/fees', icon: DollarSign },
+    { label: "Fee Structure", href: '/accountant/fee-structure', icon: FileText },
     { label: t.nav.analytics, href: '/institution/analytics', icon: BarChart3 },
   ];
 

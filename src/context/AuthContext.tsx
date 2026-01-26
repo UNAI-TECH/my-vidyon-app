@@ -320,7 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Mock Login Bypass for Testing
       const mockLogins: Record<string, { role: UserRole, password: string, name: string }> = {
         'canteen@gmail.com': { role: 'canteen_manager', password: '123455', name: 'Mock Canteen Manager' },
-        'ape@gmail.com': { role: 'accountant', password: '123456', name: 'Mock Accountant' },
+        // 'ape@gmail.com': { role: 'accountant', password: '123456', name: 'Mock Accountant' },
       };
 
       const normalizedEmail = credentials.email.trim().toLowerCase();
@@ -330,13 +330,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (mockLogins[normalizedEmail] && mockLogins[normalizedEmail].password === normalizedPassword) {
         console.log('[AUTH] Using mock credentials for:', normalizedEmail);
+
+        // Attempt to get a real institution ID to allow mock user to see data
+        let mockInstId = 'MYVID2026';
+        try {
+          const { data: instData } = await supabase.from('institutions').select('institution_id').limit(1).maybeSingle();
+          if (instData) {
+            mockInstId = instData.institution_id;
+            console.log('[AUTH] Mock user latched to real institution:', mockInstId);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch real institution for mock user, using default');
+        }
+
         const mockData = mockLogins[normalizedEmail];
         const mockUser: User = {
           id: `MOCK_${mockData.role.toUpperCase()}`,
           email: normalizedEmail,
           name: mockData.name,
           role: mockData.role,
-          institutionId: 'MYVID2026', // Use a default test institution ID
+          institutionId: mockInstId,
         };
 
         setState({

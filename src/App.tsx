@@ -78,6 +78,7 @@ import { InstitutionStudentDetails } from "./pages/institution/InstitutionStuden
 import { InstitutionAddStudent } from "./pages/institution/InstitutionAddStudent";
 
 import { InstitutionFees } from "./pages/institution/InstitutionFees";
+import { InstitutionFeeStructure } from "./pages/institution/InstitutionFeeStructure";
 import { InstitutionAnalytics } from "./pages/institution/InstitutionAnalytics";
 import { InstitutionReports } from "./pages/institution/InstitutionReports";
 import { InstitutionSettings } from "./pages/institution/InstitutionSettings";
@@ -232,6 +233,7 @@ const App = () => {
                       {/* Accountant Routes */}
                       <Route path="/accountant" element={<ProtectedRoute allowedRoles={['accountant']}><AccountantFees /></ProtectedRoute>} />
                       <Route path="/accountant/fees" element={<ProtectedRoute allowedRoles={['accountant']}><AccountantFees /></ProtectedRoute>} />
+                      <Route path="/accountant/fee-structure" element={<ProtectedRoute allowedRoles={['accountant']}><InstitutionFeeStructure /></ProtectedRoute>} />
 
                       {/* Canteen Routes */}
                       <Route path="/canteen" element={<ProtectedRoute allowedRoles={['canteen_manager']}><CanteenDashboard /></ProtectedRoute>} />

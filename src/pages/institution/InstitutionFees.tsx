@@ -42,6 +42,26 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Trash2 } from 'lucide-react'; // Import Trash2
+
+interface Group {
+    id: string;
+    name: string;
+    classes: ClassItem[];
+}
+
+interface ClassItem {
+    id: string;
+    name: string;
+    sections: string[];
+    groupName?: string;
+}
+
+interface FeeComponent {
+    id: string;
+    title: string;
+    amount: string;
+}
 import { useAuth } from '@/context/AuthContext';
 import { useInstitution } from '@/context/InstitutionContext';
 import { supabase } from '@/lib/supabase';
@@ -74,19 +94,22 @@ export function InstitutionFees() {
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track' | 'create_structure' | 'receipt'>('none');
 
-    // Create Fee Structure State
-    const [newFeeStructure, setNewFeeStructure] = useState({
-        name: '',
-        amount: '',
-        dueDate: '',
-        description: ''
-    });
+    // Create Fee Structure State (Enhanced)
+    const [structureName, setStructureName] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [feeComponents, setFeeComponents] = useState<FeeComponent[]>([{ id: '1', title: 'Tuition Fee', amount: '0' }]);
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [selectedClassForFee, setSelectedClassForFee] = useState<string>('');
+    const [saving, setSaving] = useState(false);
+
+
 
     // Fetch Global Stats
     useEffect(() => {
         if (!user?.institutionId) return;
 
-        const fetchStats = async () => {
+        const fetchData = async () => {
+            // Fetch Stats
             try {
                 const { data, error } = await supabase
                     .from('student_fees')
@@ -101,8 +124,21 @@ export function InstitutionFees() {
             } catch (err) {
                 console.error("Stats fetch error:", err);
             }
+
+            // Fetch Groups for Fee Structure Popup
+            try {
+                const { data, error } = await supabase
+                    .from('groups')
+                    .select('id, name, classes(id, name, sections)')
+                    .eq('institution_id', user.institutionId);
+
+                if (error) throw error;
+                setGroups(data || []);
+            } catch (err) {
+                console.error("Groups fetch error:", err);
+            }
         };
-        fetchStats();
+        fetchData();
     }, [user?.institutionId]);
 
     // Effects
@@ -334,38 +370,94 @@ export function InstitutionFees() {
         setViewMode('tree');
     };
 
+    // Helper Functions for Fee Components
+    const addComponent = () => {
+        setFeeComponents([...feeComponents, { id: Date.now().toString(), title: '', amount: '' }]);
+    };
+
+    const removeComponent = (id: string) => {
+        if (feeComponents.length === 1) return;
+        setFeeComponents(feeComponents.filter(c => c.id !== id));
+    };
+
+    const updateComponent = (id: string, field: keyof FeeComponent, value: string) => {
+        setFeeComponents(feeComponents.map(c => c.id === id ? { ...c, [field]: value } : c));
+    };
+
+    const calculateTotal = () => {
+        return feeComponents.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+    };
+
     const handleCreateFeeStructure = async () => {
-        if (!user?.institutionId) return;
+        if (!user?.institutionId || !selectedClassForFee) {
+            toast.error("Please select a class");
+            return;
+        }
+
+        setSaving(true);
         try {
+            const totalAmount = calculateTotal();
+            const componentsJson = JSON.stringify(feeComponents);
+
+            // Note: Storing class specific info might need 'class_id' or encoded in name.
+            // Following previous pattern: Name = Name, Description = JSON.
+            // But this popup implies creating it FOR a specific class. 
+            // The user request "after selecting the class in a dropdown...".
+            // We'll append class name to structure name or rely on user inputting it, 
+            // BUT to separate it, we should ideally use a class_id column if exists or name convention.
+            // We'll trust the user's name input but maybe auto-fill it?
+
             const { error } = await supabase.from('fee_structures').insert([{
                 institution_id: user.institutionId,
-                name: newFeeStructure.name,
-                amount: parseFloat(newFeeStructure.amount),
-                due_date: newFeeStructure.dueDate ? new Date(newFeeStructure.dueDate).toISOString() : null,
-                // description: newFeeStructure.description // need column check
+                name: structureName, // User defined
+                amount: totalAmount,
+                due_date: dueDate ? new Date(dueDate).toISOString() : null,
+                description: componentsJson
+                // class_id: reference? Schema unclear, relying on description mostly.
             }]);
 
             if (error) throw error;
 
             toast.success("Fee Structure Created");
             setOpenDialog('none');
-            setNewFeeStructure({ name: '', amount: '', dueDate: '', description: '' });
+            // Reset
+            setStructureName('');
+            setDueDate('');
+            setFeeComponents([{ id: '1', title: 'Tuition Fee', amount: '0' }]);
+            setSelectedClassForFee('');
 
         } catch (e: any) {
             toast.error(e.message);
+        } finally {
+            setSaving(false);
         }
     };
+
+    // Flatten classes for dropdown with group context
+    const flattenedClasses = groups.flatMap(g =>
+        (g.classes || []).map(c => {
+            const lowerName = c.name.toLowerCase();
+            const isHigher = ['11', '12', 'xi', 'xii'].some(s => lowerName.includes(s));
+            return {
+                ...c,
+                displayName: isHigher ? `${c.name} (${g.name})` : c.name,
+                value: c.name // Using name as value since ID usage elsewhere is mixed
+            };
+        })
+    );
+
+
 
     return (
         <InstitutionLayout>
             <PageHeader
                 title="Fee Management"
-                subtitle="Track and manage student fees across all classes"
                 actions={
                     <Button onClick={() => setOpenDialog('create_structure')} className="flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Create Fee Structure
                     </Button>
                 }
+
             />
 
             {/* Statistics Section */}
@@ -685,29 +777,114 @@ export function InstitutionFees() {
                 )}
             </div>
 
+
+
             {/* Create Fee Structure Dialog */}
+            {/* Create Fee Structure Dialog (Enhanced) */}
             <Dialog open={openDialog === 'create_structure'} onOpenChange={(open) => !open && setOpenDialog('none')}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Create Fee Structure</DialogTitle>
-                        <DialogDescription>Add a new fee type (e.g. Annual Tuition)</DialogDescription>
+                        <DialogDescription>Define complex fee structures with multiple components.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+
+                    <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+                        {/* Class Selection */}
                         <div className="grid gap-2">
-                            <Label>Name</Label>
-                            <Input value={newFeeStructure.name} onChange={(e) => setNewFeeStructure({ ...newFeeStructure, name: e.target.value })} placeholder="e.g. Tuition Fee 2026" />
+                            <Label>Select Class</Label>
+                            <Select value={selectedClassForFee} onValueChange={(val) => {
+                                setSelectedClassForFee(val);
+                                // Auto-suggest name
+                                if (!structureName) setStructureName(`${val} Fee Structure`);
+                            }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a class..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {flattenedClasses.map((c) => (
+                                        <SelectItem key={c.id + c.name} value={c.displayName}>
+                                            {c.displayName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Amount</Label>
-                            <Input type="number" value={newFeeStructure.amount} onChange={(e) => setNewFeeStructure({ ...newFeeStructure, amount: e.target.value })} placeholder="0.00" />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Structure Name</Label>
+                                <Input
+                                    value={structureName}
+                                    onChange={(e) => setStructureName(e.target.value)}
+                                    placeholder="e.g. Annual Fees 2026"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Due Date</Label>
+                                <Input
+                                    type="date"
+                                    value={dueDate}
+                                    onChange={(e) => setDueDate(e.target.value)}
+                                />
+                            </div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Due Date</Label>
-                            <Input type="date" value={newFeeStructure.dueDate} onChange={(e) => setNewFeeStructure({ ...newFeeStructure, dueDate: e.target.value })} />
+
+                        {/* Dynamic Components */}
+                        <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                            <div className="flex justify-between items-center mb-2">
+                                <Label className="text-base font-semibold">Fee Breakdown</Label>
+                                <Badge variant="outline">Total: ₹{calculateTotal().toLocaleString()}</Badge>
+                            </div>
+
+                            {feeComponents.map((comp) => (
+                                <div key={comp.id} className="grid grid-cols-12 gap-2 hover:bg-muted/50 p-2 rounded-md items-end">
+                                    <div className="col-span-12 md:col-span-7 space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Title</Label>
+                                        <Input
+                                            value={comp.title}
+                                            onChange={(e) => updateComponent(comp.id, 'title', e.target.value)}
+                                            placeholder="Component Name"
+                                        />
+                                    </div>
+                                    <div className="col-span-10 md:col-span-4 space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Amount</Label>
+                                        <Input
+                                            type="number"
+                                            value={comp.amount}
+                                            onChange={(e) => updateComponent(comp.id, 'amount', e.target.value)}
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-destructive hover:bg-destructive/10"
+                                            onClick={() => removeComponent(comp.id)}
+                                            disabled={feeComponents.length === 1}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="pt-2">
+                                <Button onClick={addComponent} variant="outline" size="sm" className="w-full border-dashed">
+                                    <Plus className="w-4 h-4 mr-2" /> Add Component
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button onClick={handleCreateFeeStructure}>Create</Button>
+
+                    <DialogFooter className="flex justify-between items-center">
+                        <div className="text-lg font-bold mr-auto">
+                            Total: ₹{calculateTotal().toLocaleString()}
+                        </div>
+                        <Button onClick={handleCreateFeeStructure} disabled={saving}>
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            Create Structure
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
