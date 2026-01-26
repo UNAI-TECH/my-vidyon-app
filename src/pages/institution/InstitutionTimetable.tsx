@@ -286,10 +286,18 @@ export function InstitutionTimetable() {
                     profiles:faculty_id (full_name),
                     classes (name)
                 `)
-                .eq('event_date', specialClassDate);
+                .eq('event_date', specialClassDate)
+                .eq('institution_id', user.institutionId);
 
             if (selectedClassId !== 'all') query = query.eq('class_id', selectedClassId);
             if (selectedSection !== 'all') query = query.eq('section', selectedSection);
+
+            // If a faculty is selected, we should definitely show their slots even if they don't match class filters
+            // but usually in "Special Classes" mode, class/section filters are for general overview.
+            // When a specific faculty is selected, we should prioritize showing their assignments.
+            if (selectedFaculty?.id && selectedClassId === 'all') {
+                // If viewing a specific faculty and no class filter, don't restrict query
+            }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -407,7 +415,7 @@ export function InstitutionTimetable() {
                     title: 'Timetable Updated',
                     message: `Your timetable for ${editingSlot.day} Period ${editingSlot.period} has been updated.`,
                     type: 'timetable',
-                    date: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
                     read: false,
                 });
             } catch (notifyError) {
@@ -532,11 +540,10 @@ export function InstitutionTimetable() {
             // 1. Notify Faculty (Redirection enabled)
             notifications.push({
                 user_id: selectedFaculty.id,
-                institution_id: user.institutionId,
-                title: specialClassTitle || 'Special Class Scheduled',
-                message: `You have a special class schedule for ${specialClassDate}. ${specialClassTitle ? `Reason: ${specialClassTitle}` : ''}`,
+                title: specialClassTitle || 'Special Timetable Scheduled',
+                message: `You have a special timetable scheduled for ${specialClassDate}. ${specialClassTitle ? `Reason: ${specialClassTitle}` : ''}`,
                 type: 'timetable',
-                date: timestamp,
+                created_at: timestamp,
                 read: false,
                 action_url: `/faculty/timetable?date=${specialClassDate}`
             });
@@ -568,11 +575,10 @@ export function InstitutionTimetable() {
                         // Student Notification (Redirection enabled)
                         notifications.push({
                             user_id: s.id,
-                            institution_id: user.institutionId,
-                            title: specialClassTitle || 'Special Class Added',
-                            message: `A special class has been added to your timetable for ${specialClassDate}.`,
+                            title: specialClassTitle || 'Special Timetable Added',
+                            message: `A special timetable has been added to your schedule for ${specialClassDate}.`,
                             type: 'timetable',
-                            date: timestamp,
+                            created_at: timestamp,
                             read: false,
                             action_url: `/student/timetable?date=${specialClassDate}`
                         });
@@ -581,13 +587,11 @@ export function InstitutionTimetable() {
                         if (s.parent_id) {
                             notifications.push({
                                 user_id: s.parent_id,
-                                institution_id: user.institutionId,
-                                title: `Special Class for your child`,
-                                message: `A special class has been added to the timetable for your child in ${className} - ${sec} on ${specialClassDate}.${specialClassTitle ? ` Reason: ${specialClassTitle}` : ''}`,
+                                title: `Special Timetable for your child`,
+                                message: `A special timetable has been added for your child in ${className} - ${sec} on ${specialClassDate}.${specialClassTitle ? ` Reason: ${specialClassTitle}` : ''}`,
                                 type: 'timetable',
-                                date: timestamp,
+                                created_at: timestamp,
                                 read: false
-                                // NO action_url as per user request
                             });
                         }
                     });
@@ -946,7 +950,10 @@ export function InstitutionTimetable() {
                                                 {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
                                                     const key = `${rowLabel}-${period}`;
                                                     const slot = isSpecialMode
-                                                        ? specialSlots.find(s => s.period_index === period)
+                                                        ? specialSlots.find(s =>
+                                                            s.period_index === period &&
+                                                            (selectedFaculty ? s.faculty_id === selectedFaculty.id : true)
+                                                        )
                                                         : viewTimetableData[key];
 
                                                     return (
